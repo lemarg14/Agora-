@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Agora — Université virtuelle</title>
+    <meta name="description" content="Une université virtuelle en 3D pour apprendre 15 à 30 minutes par jour : droit, économie, histoire, langues, management, finance." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div id="campus"></div>
+    <div id="labels"></div>
+
+    <header id="hud">
+      <button class="brand" id="btn-campus-list" title="Plan du campus">
+        <span class="logo">A</span>
+        <span><b>Agora</b><small>Université virtuelle</small></span>
+      </button>
+      <div class="stats">
+        <button class="chip" id="btn-review" title="Cartes à réviser aujourd’hui">Réviser <span class="pill" id="due-count">0</span></button>
+        <button class="chip" id="btn-fiches">Mes fiches</button>
+        <div class="chip" title="Jours d’affilée avec l’objectif atteint">🔥 <b id="streak">0</b></div>
+        <div class="chip level"><span id="level-name"></span><b id="xp"></b></div>
+        <div class="ring" id="daily">
+          <svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15.9" class="track" /><circle cx="18" cy="18" r="15.9" class="arc" id="daily-arc" pathLength="100" /></svg>
+          <span><b id="daily-min">0</b><small>min</small></span>
+        </div>
+      </div>
+    </header>
+
+    <div id="hint">Glisse pour tourner · molette ou pincement pour zoomer · clique sur un bâtiment</div>
+
+    <div id="overlay" hidden>
+      <div class="sheet"><div id="view"></div></div>
+    </div>
+    <div id="toast" role="status"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="js/store.js"></script>
+    <script src="data/faculties.js"></script>
+    <script src="data/courses/droit-penal.js"></script>
+    <script src="js/campus.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
