@@ -1,5 +1,7 @@
 /* ============================================================
-   AGORA — mémoire de progression (localStorage)
+   POLYMATH ACADEMY — mémoire de progression (localStorage)
+   (le nom interne « AGORA » des variables et de la clé de stockage est
+   conservé pour ne pas effacer la progression déjà enregistrée)
    Toute la persistance passe par ce fichier : pour synchroniser
    plus tard avec une base (Supabase, etc.), il suffit de
    remplacer load() / save().
@@ -63,15 +65,15 @@
   }
 
   const LEVELS = [
-    [0, "Auditeur libre"],
-    [100, "Licence 1"],
-    [300, "Licence 2"],
-    [600, "Licence 3"],
-    [1000, "Master 1"],
-    [1500, "Master 2"],
-    [2200, "Doctorant"],
-    [3000, "Docteur"],
-    [4000, "Professeur"],
+    [0, "Curieux"],
+    [100, "Apprenti"],
+    [300, "Initié"],
+    [600, "Explorateur"],
+    [1000, "Confirmé"],
+    [1500, "Expert"],
+    [2200, "Érudit"],
+    [3000, "Maître"],
+    [4000, "Polymathe"],
   ];
 
   A.store = {

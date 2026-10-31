@@ -1,5 +1,5 @@
 /* ============================================================
-   AGORA — styles
+   POLYMATH ACADEMY — styles
    ============================================================ */
 :root {
   --paper: #fbf7ef;
@@ -82,6 +82,8 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 700; letter-spacing: -0.01e
 .bldg-label small { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-2); }
 .bldg-label.open small { color: var(--c); font-weight: 700; }
 .bldg-label.soon { opacity: 0.75; }
+.bldg-label.lib { background: linear-gradient(180deg, #fffaf0, #f3e6c8); color: #4a3a17; }
+.bldg-label.lib b { letter-spacing: 0.02em; }
 .bldg-label.hover, .bldg-label:hover { box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28); opacity: 1; }
 
 /* ---------- HUD ---------- */

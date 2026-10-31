@@ -1,5 +1,5 @@
 /* ============================================================
-   AGORA — lecteur de séance
+   POLYMATH ACADEMY — lecteur de séance
    Transforme les étapes d'une séance en écrans successifs :
    cours (une diapo par écran) → flashcards → classement →
    quiz (une question par écran) → cas pratique → fiche.

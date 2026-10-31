@@ -1,5 +1,5 @@
 /* ============================================================
-   AGORA — application : HUD, navigation entre vues, révision
+   POLYMATH ACADEMY — application : HUD, navigation entre vues, révision
    ============================================================ */
 (function () {
   const A = window.AGORA;
@@ -231,6 +231,40 @@
     wire();
     view.querySelectorAll("[data-fiche]").forEach((b) => (b.onclick = () => ficheView(b.dataset.fiche, fichesView)));
   }
+  /* ------------------------ bibliothèque ----------------------- */
+  function libraryView() {
+    const nf = store.fiches().length,
+      nd = store.dueCards().length;
+    const all = A.faculties.flatMap((f) => f.courses.map((id) => A.courses[id]).filter(Boolean).map((c) => ({ c, f })));
+    open(
+      `${topbar("Campus")}
+      <div class="hero" style="--acc:#b8892f">
+        <div class="kicker">Au cœur du campus</div>
+        <h1>La Bibliothèque</h1>
+        <p>Tes fiches, tes révisions et tout le catalogue des cours, au même endroit.</p>
+      </div>
+      <div class="course-list">
+        <button class="course-card" data-lib="fiches" style="--acc:#b8892f"><div><b>Mes fiches</b><p>${nf ? nf + " fiche" + (nf > 1 ? "s" : "") + " rangée" + (nf > 1 ? "s" : "") : "Chaque séance terminée ajoute sa fiche ici."}</p></div><span class="cta">Ouvrir →</span></button>
+        <button class="course-card" data-lib="review" style="--acc:#b8892f"><div><b>Réviser</b><p>${nd ? nd + " carte" + (nd > 1 ? "s" : "") + " à revoir aujourd’hui" : "Rien à revoir pour l’instant."}</p></div><span class="cta">Lancer →</span></button>
+      </div>
+      <h3 class="section-title">Catalogue · ${all.length} cours</h3>
+      <div class="course-list">${all
+        .map(({ c, f }) => {
+          const done = store.course(c.id).completed.length;
+          return `<button class="course-card" data-course="${c.id}" style="--acc:${c.color}">
+            <div><b>${c.title}</b><p>${f.short} · ${c.sessions.length} séances · ${c.minutesPerSession}</p></div>
+            <div class="mini-progress"><i style="width:${(done / c.sessions.length) * 100}%"></i></div>
+            <span class="cta">${done ? (done === c.sessions.length ? "Revoir" : "Continuer") : "Commencer"} →</span>
+          </button>`;
+        })
+        .join("")}</div>`
+    );
+    wire();
+    view.querySelector('[data-lib="fiches"]').onclick = fichesView;
+    view.querySelector('[data-lib="review"]').onclick = reviewView;
+    view.querySelectorAll("[data-course]").forEach((b) => (b.onclick = () => courseHome(A.courses[b.dataset.course])));
+  }
+
   function ficheView(id, back) {
     const f = store.get().fiches[id];
     const c = A.courses[f.courseId];
@@ -247,7 +281,7 @@
   function campusList() {
     open(
       `${topbar()}<div class="kicker">Plan du campus</div><h1>Les facultés</h1>
-      <div class="course-list">${A.faculties
+      <div class="course-list"><button class="course-card" data-libcard style="--acc:#b8892f"><div><b>La Bibliothèque</b><p>Fiches, révisions et catalogue de tous les cours.</p></div><span class="cta">Entrer →</span></button>${A.faculties
         .map(
           (f) => `<button class="course-card ${f.status === "open" ? "" : "ghost-card"}" data-fac="${f.id}" style="--acc:${f.color}">
           <div><b>${f.name}</b><p>${f.desc}</p></div><span class="cta">${f.status === "open" ? "Entrer →" : "Bientôt"}</span></button>`
@@ -255,6 +289,10 @@
         .join("")}</div>`
     );
     wire();
+    view.querySelector("[data-libcard]").onclick = () => {
+      campus && campus.focus("__library");
+      libraryView();
+    };
     view.querySelectorAll("[data-fac]").forEach(
       (b) =>
         (b.onclick = () => {
@@ -276,7 +314,7 @@
     }
   }
   if (window.THREE && webglOK()) {
-    campus = A.createCampus($("#campus"), $("#labels"), A.faculties, { onSelect: openFaculty });
+    campus = A.createCampus($("#campus"), $("#labels"), A.faculties, { onSelect: openFaculty, onLibrary: libraryView });
   } else {
     document.body.classList.add("no-3d");
     campusList();

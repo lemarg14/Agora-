@@ -33,9 +33,10 @@ AGORA.faculties = [
     short: "Histoire",
     color: "#8a6a2f",
     style: "tower",
-    status: "soon",
+    status: "open",
     desc: "Les grandes périodes, les grands tournants, et pourquoi ils comptent encore aujourd’hui.",
-    courses: [],
+    courses: ["histoire-commerce", "france-xxe", "colonisation"],
+    next: "La Yougoslavie, la Russie de Poutine, le Maroc, le Golfe…",
   },
   {
     id: "langues",

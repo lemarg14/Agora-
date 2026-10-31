@@ -1,6 +1,6 @@
-# Agora — université virtuelle 3D
+# Polymath Academy — campus 3D d’apprentissage
 
-Un campus 3D où chaque bâtiment est une faculté. On choisit un cours, puis on suit un parcours de séances courtes (15 à 20 min par jour) : cours en diapos, flashcards, exercices de classement, quiz, cas pratiques « tu es le juge », et une **fiche de révision** à la fin de chaque séance.
+Un campus 3D où chaque bâtiment est une faculté. Polymath Academy est un service d’apprentissage en ligne : il ne délivre pas de diplôme et n’est pas un établissement d’enseignement supérieur. On choisit un cours, puis on suit un parcours de séances courtes (15 à 20 min par jour) : cours en diapos, flashcards, exercices de classement, quiz, cas pratiques « tu es le juge », et une **fiche de révision** à la fin de chaque séance.
 
 **Facultés** : Droit (ouverte) · Économie · Histoire · Langues · Management · Finance (en construction).
 **Premier cours** : *Droit pénal — les bases*, 8 séances.
@@ -31,17 +31,17 @@ js/player.js             lecteur de séance (cours, cartes, quiz, cas, fiche)
 js/app.js                HUD, navigation, révision, mes fiches
 data/faculties.js        liste des facultés (nom, couleur, style de bâtiment, statut)
 data/courses/*.js        un fichier par cours
-tools/build-single.py    génère dist/agora.html (tout-en-un, pour partager un seul fichier)
+tools/build-single.py    génère dist/polymath-academy.html (tout-en-un, pour partager un seul fichier)
 ```
 
 ## Ce que la mémoire suit
 
-Tout est stocké dans le navigateur (`localStorage`, clé `agora.v1`) :
+Tout est stocké dans le navigateur (`localStorage`, clé `agora.v1`, nom historique conservé) :
 
 - séances terminées et écran en cours (on reprend où on s’est arrêté) ;
 - **temps du jour** (compté seulement quand on est actif) et objectif de 15 min ;
 - **série** de jours où l’objectif est atteint ;
-- **XP et niveau** (Auditeur libre → Licence 1 → … → Professeur) ;
+- **XP et rang** (Curieux → Apprenti → Initié → Explorateur → Confirmé → Expert → Érudit → Maître → Polymathe) ;
 - **paquet de révision espacée** (méthode Leitner : 1, 3, 7, 16, 35 jours) ;
 - **fiches** sauvegardées, imprimables en PDF.
 

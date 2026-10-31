@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Génère dist/agora.html : tout le site dans un seul fichier (CSS et JS locaux intégrés).
+"""Génère dist/polymath-academy.html : tout le site dans un seul fichier (CSS et JS locaux intégrés).
 Usage : python3 tools/build-single.py
 """
 import pathlib, re
@@ -18,7 +18,7 @@ html = re.sub(
     html,
 )
 
-out = root / "dist" / "agora.html"
+out = root / "dist" / "polymath-academy.html"
 out.parent.mkdir(exist_ok=True)
 out.write_text(html, encoding="utf-8")
 print("OK ->", out, f"({out.stat().st_size // 1024} Ko)")
