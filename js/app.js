@@ -273,7 +273,98 @@
     view.querySelector("[data-print]").onclick = () => window.print();
   }
 
+  /* -------------------------- compte --------------------------- */
+  const acct = A.account;
+  const ERR = {
+    bad_email: "Adresse e-mail invalide.",
+    too_many: "Trop de tentatives. Réessaie dans une heure.",
+    quota: "Trop de connexions aujourd’hui, réessaie demain.",
+    no_code: "Demande d’abord un code.",
+    expired: "Ce code a expiré, demandes-en un nouveau.",
+    bad_code: "Le code fait 6 chiffres.",
+    wrong_code: "Code incorrect.",
+  };
+  const errMsg = (r) => (ERR[r.error] || "Le serveur ne répond pas, réessaie.") + (r.left != null ? ` Il reste ${r.left} essai${r.left > 1 ? "s" : ""}.` : "");
+  function updateAccountChip() {
+    const b = $("#btn-account");
+    if (!b) return;
+    b.hidden = !acct.enabled;
+    b.dataset.s = acct.status;
+    $("#account-label").textContent = acct.loggedIn ? acct.email.split("@")[0] : "Se connecter";
+  }
+  acct.onChange(() => {
+    updateAccountChip();
+    if (!overlay.hidden && view.querySelector("[data-acct-view]")) accountView();
+  });
+  function accountView(step, email) {
+    const fmt = (t) => (t ? new Date(t).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—");
+    const label = { synced: "À jour", syncing: "Synchronisation…", error: "Erreur, nouvel essai bientôt", offline: "Hors ligne", off: "—" };
+    if (acct.loggedIn) {
+      const lv = store.level();
+      open(`${topbar()}<div data-acct-view></div><div class="kicker">Mon compte</div><h1>${acct.email}</h1>
+        <p class="muted">Ta progression est enregistrée en ligne : retrouve-la sur n’importe quel appareil en te connectant avec cette adresse.</p>
+        <div class="acct-row"><span>Statut</span><b>${label[acct.status] || ""}</b></div>
+        <div class="acct-row"><span>Dernière sauvegarde</span><b>${fmt(acct.lastSync)}</b></div>
+        <div class="acct-row"><span>Rang</span><b>${lv.name} · ${lv.xp} XP</b></div>
+        <div class="acct-actions"><button class="btn primary" data-sync>Synchroniser maintenant</button><button class="btn ghost" data-logout>Se déconnecter</button></div>`);
+      wire();
+      view.querySelector("[data-sync]").onclick = () => acct.syncNow();
+      view.querySelector("[data-logout]").onclick = async () => {
+        await acct.logout();
+        toast("Déconnecté. Ta progression reste aussi sur cet appareil.");
+        accountView();
+      };
+      return;
+    }
+    if (step === "code") {
+      open(`${topbar("Retour")}<div class="kicker">Connexion</div><h1>Entre ton code</h1>
+        <p class="muted">Un code à 6 chiffres vient d’être envoyé à <b>${email}</b>. Pense à regarder dans les spams.</p>
+        <form class="auth-box"><input class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" required />
+        <button class="btn primary big" type="submit">Valider</button><div class="auth-msg"></div></form>`);
+      wire(() => accountView());
+      const f = view.querySelector("form"), msg = view.querySelector(".auth-msg"), inp = f.querySelector("input");
+      inp.focus();
+      f.onsubmit = async (e) => {
+        e.preventDefault();
+        msg.className = "auth-msg";
+        msg.textContent = "Vérification…";
+        try {
+          const r = await acct.verify(email, inp.value);
+          if (!r.ok) return ((msg.className = "auth-msg err"), (msg.textContent = errMsg(r)));
+          toast("Connecté : ta progression est sauvegardée en ligne.");
+          accountView();
+        } catch (err) {
+          msg.className = "auth-msg err";
+          msg.textContent = errMsg({});
+        }
+      };
+      return;
+    }
+    open(`${topbar()}<div class="kicker">Mon compte</div><h1>Sauvegarde ta progression</h1>
+      <p class="muted">Connecte-toi avec ton e-mail pour retrouver ta progression, tes fiches et tes révisions sur tous tes appareils. Pas de mot de passe : on t’envoie un code.</p>
+      <form class="auth-box"><input type="email" autocomplete="email" placeholder="ton@email.fr" required value="${email || ""}" />
+      <button class="btn primary big" type="submit">Recevoir mon code</button><div class="auth-msg"></div></form>`);
+    wire();
+    const f = view.querySelector("form"), msg = view.querySelector(".auth-msg"), inp = f.querySelector("input");
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      const em = inp.value.trim().toLowerCase();
+      msg.className = "auth-msg";
+      msg.textContent = "Envoi du code…";
+      try {
+        const r = await acct.requestCode(em);
+        if (!r.ok) return ((msg.className = "auth-msg err"), (msg.textContent = errMsg(r)));
+        accountView("code", em);
+      } catch (err) {
+        msg.className = "auth-msg err";
+        msg.textContent = errMsg({});
+      }
+    };
+  }
+
   /* ------------------------ démarrage -------------------------- */
+  $("#btn-account").onclick = () => accountView();
+  updateAccountChip();
   $("#btn-review").onclick = reviewView;
   $("#btn-fiches").onclick = fichesView;
   $("#btn-campus-list").onclick = campusList;

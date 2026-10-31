@@ -49,6 +49,17 @@
 
   let state;
   const listeners = [];
+  // identifiant de cet appareil : l’XP est comptée par appareil pour pouvoir
+  // additionner sans doublon celle gagnée sur plusieurs appareils
+  let DEV = "d0";
+  try {
+    DEV = localStorage.getItem("polymath.device") || "d" + Math.random().toString(36).slice(2, 10);
+    localStorage.setItem("polymath.device", DEV);
+  } catch (e) {}
+  function gain(n) {
+    state.xpBy[DEV] = (state.xpBy[DEV] || 0) + n;
+    state.xp = Object.values(state.xpBy).reduce((a, b) => a + b, 0);
+  }
 
   function load() {
     try {
@@ -56,8 +67,10 @@
     } catch (e) {
       state = empty();
     }
+    if (!state.xpBy) state.xpBy = state.xp ? { [DEV]: state.xp } : {};
   }
   function save() {
+    state.updatedAt = Date.now();
     try {
       localStorage.setItem(KEY, JSON.stringify(state));
     } catch (e) {}
@@ -102,7 +115,7 @@
 
     /* --- XP & niveau --- */
     addXP(n) {
-      state.xp += n;
+      gain(n);
       save();
     },
     level() {
@@ -131,7 +144,7 @@
       const first = !c.completed.includes(sid);
       if (first) {
         c.completed.push(sid);
-        state.xp += xp;
+        gain(xp);
       }
       delete c.progress[sid];
       save();
@@ -167,7 +180,7 @@
       if (!c) return;
       c.box = ok ? Math.min(c.box + 1, LEITNER.length - 1) : 1;
       c.due = addDays(today(), ok ? LEITNER[c.box] : 1);
-      if (ok) state.xp += 5;
+      if (ok) gain(5);
       save();
     },
 
@@ -180,9 +193,46 @@
 
     reset() {
       state = empty();
+      state.xpBy = {};
       save();
     },
+
+    /* --- synchronisation avec un compte : fusion sans perte --- */
+    mergeRemote(remote) {
+      if (!remote || typeof remote !== "object") return false;
+      const before = JSON.stringify(Object.assign({}, state, { updatedAt: 0 }));
+      state = mergeState(state, Object.assign(empty(), remote));
+      const changed = JSON.stringify(Object.assign({}, state, { updatedAt: 0 })) !== before;
+      if (changed) save();
+      return changed;
+    },
   };
+
+  function mergeState(a, b) {
+    const r = JSON.parse(JSON.stringify(a));
+    r.xpBy = Object.assign({}, a.xpBy);
+    if (!b.xpBy && b.xp) b.xpBy = { legacy: b.xp };
+    Object.entries(b.xpBy || {}).forEach(([d, n]) => (r.xpBy[d] = Math.max(r.xpBy[d] || 0, n || 0)));
+    r.xp = Object.values(r.xpBy).reduce((x, y) => x + y, 0);
+    Object.entries(b.days || {}).forEach(([d, s]) => (r.days[d] = Math.max(r.days[d] || 0, s || 0)));
+    const sa = a.streak || {}, sb = b.streak || {};
+    if (sb.last && (!sa.last || sb.last > sa.last)) r.streak = Object.assign({}, sb);
+    else if (sb.last && sb.last === sa.last) r.streak.count = Math.max(sa.count || 0, sb.count || 0);
+    Object.entries(b.courses || {}).forEach(([id, cb]) => {
+      const ca = r.courses[id] || (r.courses[id] = { completed: [], progress: {} });
+      (cb.completed || []).forEach((sid) => ca.completed.includes(sid) || ca.completed.push(sid));
+      Object.entries(cb.progress || {}).forEach(([sid, i]) => {
+        if (!ca.completed.includes(sid) && !(sid in ca.progress)) ca.progress[sid] = i;
+      });
+      ca.completed.forEach((sid) => delete ca.progress[sid]);
+    });
+    Object.entries(b.deck || {}).forEach(([id, cb]) => {
+      const ca = r.deck[id];
+      if (!ca || cb.due > ca.due || (cb.due === ca.due && cb.box > ca.box)) r.deck[id] = cb;
+    });
+    Object.entries(b.fiches || {}).forEach(([id, f]) => r.fiches[id] || (r.fiches[id] = f));
+    return r;
+  }
 
   load();
 })();

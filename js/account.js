@@ -1,0 +1,146 @@
+/* ============================================================
+   POLYMATH ACADEMY — comptes et synchronisation
+   Connexion par code e-mail (serveur : Google Apps Script + Sheet).
+   La progression reste aussi en local : le site marche sans compte,
+   et hors connexion. Avec un compte, chaque changement est envoyé
+   quelques secondes après, et les appareils sont fusionnés.
+   ============================================================ */
+(function () {
+  const A = window.AGORA;
+  const store = A.store;
+  const SKEY = "polymath.session";
+  const DELAY = 3000;
+
+  let session = null;
+  try {
+    session = JSON.parse(localStorage.getItem(SKEY)) || null;
+  } catch (e) {}
+  let status = session ? "syncing" : "off"; // off | syncing | synced | error | offline
+  let lastSync = 0, timer = null, applying = false, pending = false;
+  const listeners = [];
+  const emit = () => listeners.forEach((f) => f(api));
+  const setStatus = (s) => ((status = s), emit());
+  const url = () => A.ACCOUNT_URL;
+
+  function saveSession(s) {
+    session = s;
+    try {
+      if (s) localStorage.setItem(SKEY, JSON.stringify(s));
+      else localStorage.removeItem(SKEY);
+    } catch (e) {}
+  }
+
+  async function call(action, payload) {
+    const res = await fetch(url(), {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(Object.assign({ action }, payload || {})),
+      redirect: "follow",
+    });
+    return res.json();
+  }
+  const payload = () => JSON.stringify(store.get());
+
+  async function push() {
+    if (!session) return;
+    clearTimeout(timer);
+    pending = false;
+    setStatus("syncing");
+    try {
+      const r = await call("push", { token: session.token, data: payload() });
+      if (r.ok) {
+        lastSync = Date.now();
+        setStatus("synced");
+      } else if (r.error === "auth") expired();
+      else setStatus("error");
+    } catch (e) {
+      pending = true;
+      setStatus(navigator.onLine === false ? "offline" : "error");
+    }
+  }
+  function applyRemote(raw) {
+    if (!raw) return;
+    try {
+      applying = true;
+      store.mergeRemote(JSON.parse(raw));
+    } catch (e) {
+    } finally {
+      applying = false;
+    }
+  }
+  async function pull() {
+    if (!session) return;
+    setStatus("syncing");
+    try {
+      const r = await call("pull", { token: session.token });
+      if (!r.ok) return r.error === "auth" ? expired() : setStatus("error");
+      applyRemote(r.data);
+      await push(); // renvoie la version fusionnée
+    } catch (e) {
+      setStatus(navigator.onLine === false ? "offline" : "error");
+    }
+  }
+  function expired() {
+    saveSession(null);
+    setStatus("off");
+  }
+
+  store.onChange(() => {
+    if (!session || applying) return;
+    pending = true;
+    clearTimeout(timer);
+    timer = setTimeout(push, DELAY);
+  });
+  // en quittant la page : dernier envoi
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "hidden" || !session || !pending || !navigator.sendBeacon) return;
+    const body = JSON.stringify({ action: "push", token: session.token, data: payload() });
+    if (navigator.sendBeacon(url(), new Blob([body], { type: "text/plain;charset=utf-8" }))) pending = false;
+  });
+  window.addEventListener("online", () => session && pull());
+  // retour sur l’onglet : récupère ce qui a été fait sur un autre appareil
+  window.addEventListener("focus", () => {
+    if (session && Date.now() - lastSync > 60000 && status !== "syncing") pull();
+  });
+
+  const api = (A.account = {
+    get enabled() {
+      return !!url();
+    },
+    get email() {
+      return session && session.email;
+    },
+    get loggedIn() {
+      return !!session;
+    },
+    get status() {
+      return status;
+    },
+    get lastSync() {
+      return lastSync;
+    },
+    onChange: (f) => listeners.push(f),
+    async requestCode(email) {
+      return call("requestCode", { email });
+    },
+    async verify(email, code) {
+      const r = await call("verify", { email, code });
+      if (!r.ok) return r;
+      saveSession({ email: r.email, token: r.token });
+      applyRemote(r.data);
+      await push();
+      return r;
+    },
+    async logout() {
+      const t = session && session.token;
+      if (pending) await push();
+      saveSession(null);
+      setStatus("off");
+      if (t) call("logout", { token: t }).catch(() => {});
+    },
+    syncNow: () => pull(),
+  });
+
+  if (session && url()) pull();
+  else if (session) setStatus("error");
+})();

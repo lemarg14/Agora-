@@ -22,6 +22,7 @@
       <div class="stats">
         <button class="chip" id="btn-review" title="Cartes à réviser aujourd’hui">Réviser <span class="pill" id="due-count">0</span></button>
         <button class="chip" id="btn-fiches">Mes fiches</button>
+        <button class="chip account" id="btn-account" title="Mon compte"><i class="dot"></i><span id="account-label">Se connecter</span></button>
         <div class="chip" title="Jours d’affilée avec l’objectif atteint">🔥 <b id="streak">0</b></div>
         <div class="chip level"><span id="level-name"></span><b id="xp"></b></div>
         <div class="ring" id="daily">
@@ -39,7 +40,9 @@
     <div id="toast" role="status"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="js/config.js"></script>
     <script src="js/store.js"></script>
+    <script src="js/account.js"></script>
     <script src="data/faculties.js"></script>
     <script src="data/courses/droit-penal.js"></script>
     <script src="data/courses/procedures.js"></script>

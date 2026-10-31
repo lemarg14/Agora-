@@ -115,6 +115,19 @@ h1, h2, h3 { font-family: var(--serif); font-weight: 700; letter-spacing: -0.01e
 }
 button.chip:hover { background: var(--card); }
 .chip.level span { color: var(--ink-2); font-size: 12px; }
+.chip.account { gap: 7px; }
+.chip.account .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-2); opacity: 0.4; }
+.chip.account[data-s="synced"] .dot { background: #2f9e5b; opacity: 1; }
+.chip.account[data-s="syncing"] .dot { background: #d9a43a; opacity: 1; animation: pulse 1s infinite; }
+.chip.account[data-s="error"] .dot, .chip.account[data-s="offline"] .dot { background: #c2453a; opacity: 1; }
+@keyframes pulse { 50% { opacity: 0.3; } }
+.auth-box { max-width: 420px; margin: 8px 0 0; display: grid; gap: 12px; }
+.auth-box input { font: inherit; font-size: 17px; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--line, rgba(0,0,0,.15)); background: var(--card); color: inherit; width: 100%; box-sizing: border-box; }
+.auth-box input.code { letter-spacing: 0.4em; font-size: 24px; text-align: center; font-weight: 700; }
+.auth-msg { min-height: 1.3em; font-size: 14px; color: var(--ink-2); }
+.auth-msg.err { color: #c2453a; }
+.acct-row { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line, rgba(0,0,0,.08)); }
+.acct-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
 .pill { background: var(--accent); color: #fff; border-radius: 99px; padding: 1px 7px; font-size: 12px; font-weight: 700; }
 .ring { position: relative; width: 44px; height: 44px; background: var(--hud); border-radius: 50%; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
 .ring svg { position: absolute; inset: 3px; transform: rotate(-90deg); }
@@ -155,7 +168,7 @@ body.in-view #hint { display: none; }
 @media (max-width: 640px) {
   .sheet { width: 100%; height: 100%; border-radius: 0; }
   #hud { padding: 10px; }
-  .chip.level span, .brand small { display: none; }
+  .chip.level span, .brand small, #account-label { display: none; }
   .chip { height: 34px; padding: 0 9px; font-size: 13px; }
   .brand { padding-right: 10px; }
 }
@@ -391,3 +404,4 @@ body.no-3d #hint { display: none; }
   .fiche { box-shadow: none; }
   #campus, #labels { display: none; }
 }
+.auth-box .btn.big { margin-top: 0; }
