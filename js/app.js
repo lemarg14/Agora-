@@ -180,12 +180,15 @@
         return;
       }
       const c = due[k];
+      const lang = c.course && A.courses[c.course] && A.courses[c.course].lang;
       stage.innerHTML = `<div class="count">${k + 1}/${due.length}</div>
-        <button class="flip big"><span class="face front">${c.front}</span><span class="face back">${c.back}</span></button>
+        <button class="flip big"><span class="face front">${c.front}${lang && A.canSpeak ? `<span class="say-btn" role="button" data-say="1" title="Écouter">🔊</span>` : ""}</span><span class="face back">${c.back}</span></button>
         <div class="review-actions" hidden><button class="btn choice wrongish" data-r="0">À revoir</button><button class="btn choice rightish" data-r="1">Je savais</button></div>
         <p class="muted center">Réponds dans ta tête, puis retourne la carte.</p>`;
       const flip = stage.querySelector(".flip"),
         acts = stage.querySelector(".review-actions");
+      const sb = stage.querySelector(".say-btn");
+      if (sb) sb.addEventListener("click", (e) => (e.stopPropagation(), A.speak(c.front, lang)));
       flip.onclick = () => {
         flip.classList.add("on");
         acts.hidden = false;
@@ -411,5 +414,5 @@
     campusList();
   }
   updateHUD();
-  setTimeout(() => $("#hint").classList.add("fade"), 7000);
+  setTimeout(() => $("#hint").classList.add("fade"), 15000);
 })();

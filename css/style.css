@@ -61,7 +61,7 @@ button:disabled { cursor: default; }
 h1, h2, h3 { font-family: var(--serif); font-weight: 700; letter-spacing: -0.01em; margin: 0 0 0.4em; }
 
 #campus { position: fixed; inset: 0; }
-#campus canvas { display: block; cursor: grab; touch-action: none; }
+#campus canvas { display: block; touch-action: none; }
 #labels { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
 
 /* ---------- Étiquettes des bâtiments ---------- */
@@ -405,3 +405,45 @@ body.no-3d #hint { display: none; }
   #campus, #labels { display: none; }
 }
 .auth-box .btn.big { margin-top: 0; }
+
+/* ---------- Bouton balade / vue du ciel ---------- */
+.view-toggle {
+  position: fixed; right: 16px; bottom: 18px; pointer-events: auto;
+  display: flex; align-items: center; gap: 8px;
+  padding: 11px 16px; border: 0; border-radius: 999px;
+  background: var(--hud); backdrop-filter: blur(8px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  font: inherit; font-weight: 600; font-size: 14px; color: inherit; cursor: pointer;
+}
+.view-toggle:hover { box-shadow: 0 8px 26px rgba(0, 0, 0, 0.26); }
+#campus canvas { cursor: default; }
+
+/* ---------- Langues : prononciation et écriture ---------- */
+.say-btn { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; margin-left: 8px; border-radius: 50%; background: color-mix(in srgb, var(--acc, var(--accent)) 14%, transparent); cursor: pointer; font-size: 15px; vertical-align: middle; user-select: none; }
+.say-btn:hover { background: color-mix(in srgb, var(--acc, var(--accent)) 26%, transparent); }
+.say { border-bottom: 2px dotted var(--acc, var(--accent)); cursor: pointer; }
+.say-list { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 8px; }
+.say-list li { display: grid; grid-template-columns: auto minmax(90px, auto) 1fr; align-items: center; gap: 4px 10px; padding: 8px 12px; border-radius: 12px; background: var(--card); border: 1px solid var(--line, rgba(0,0,0,.08)); }
+.say-list li .say-btn { margin-left: 0; }
+.say-list .ph { grid-column: 2; font-size: 12px; color: var(--ink-2); font-style: italic; }
+.say-list .fr { grid-column: 3; grid-row: 1; color: var(--ink-2); }
+.listen { display: flex; gap: 10px; align-items: center; margin: 6px 0 14px; flex-wrap: wrap; }
+.big-say { font-size: 17px; padding: 12px 20px; }
+.type-item .prompt { font-size: 19px; font-weight: 600; margin: 8px 0; }
+.type-item .hint { color: var(--ink-2); font-size: 14px; margin: 0 0 10px; }
+.type-form { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+.type-form input { flex: 1 1 220px; font: inherit; font-size: 17px; padding: 12px 14px; border-radius: 12px; border: 2px solid var(--line, rgba(0,0,0,.15)); background: var(--card); color: inherit; }
+.type-form input.ok { border-color: #2f9e5b; }
+.type-form input.ko { border-color: #c2453a; }
+@media (max-width: 560px) { .say-list li { grid-template-columns: auto 1fr; } .say-list .fr { grid-column: 2; grid-row: auto; } }
+.type-item [data-go], .sort-item [data-go] { margin-top: 12px; }
+
+/* ---------- Écriture arabe ---------- */
+.ar, [lang="ar"] { font-family: "Noto Naskh Arabic", "Geeza Pro", "Arabic Typesetting", "Traditional Arabic", serif; font-size: 1.35em; line-height: 1.6; unicode-bidi: isolate; direction: rtl; }
+.say-list b.ar { font-size: 1.5em; font-weight: 600; }
+.ar-big { display: block; font-size: 2.4em; text-align: center; margin: 6px 0; }
+table.t td .ar { font-size: 1.6em; }
+
+/* Cyrillique : translittération affichée sous le mot */
+.flip .front .tr { display: block; margin-top: 4px; font-family: var(--sans, Inter, sans-serif); font-weight: 500; font-size: 12px; font-style: italic; color: var(--ink-2); }
+.explain .tr { font-weight: 400; color: var(--ink-2); }

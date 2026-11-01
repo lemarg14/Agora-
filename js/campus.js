@@ -30,6 +30,13 @@
     { x: 55, z: 52, f: [-0.7, -0.7] },
   ];
   const LIB_POS = { x: 0, z: -44, f: [0, 1] };
+  // lieux hors du village, reliés à la cour par la grande allée est-ouest
+  // (clé = style du bâtiment ; c = centre de l’emprise, clear = rayon sans arbres)
+  const SPECIAL = {
+    stadium: { x: 80, z: 0, f: [-1, 0], front: 6.5, view: 70, c: [100, 0], clear: 36 },
+    restaurant: { x: -80, z: 0, f: [1, 0], front: 12.5, view: 46, c: [-82, 0], clear: 22 },
+    workshop: { x: 25, z: 68, f: [-1, 0], front: 7.5, view: 48, c: [32, 68], clear: 20 },
+  };
 
   /* ---------- Matériaux ---------- */
   const greyed = (hex, amt) => {
@@ -228,6 +235,133 @@
       g.add(at(sph(0.25, c.gold), 0, y + 27.3, -0.8));
       door(g, c, y, 3.55, 1.6, 2.6);
       return y + 27.5;
+    },
+
+    // Sport : gymnase grec moderne, piste d’athlétisme, tribunes, vasque olympique
+    stadium(g, c) {
+      const y = steps(g, c, 19, 11, 2, 0.4);
+      g.add(at(rbox(16, 6, 8, 2.4, c.glass), 0, y + 3, -0.5));
+      g.add(at(rbox(14.6, 5.6, 6.6, 2, c.marble2), 0, y + 2.8, -0.9));
+      g.add(at(rbox(17.2, 0.22, 9.6, 2.8, c.gold), 0, y + 6.05, -0.4));
+      g.add(at(rbox(17, 0.8, 9.4, 2.8, c.color), 0, y + 6.55, -0.4));
+      g.add(at(dome(3.2, c.glass), 0, y + 6.9, -0.6));
+      for (let k = 0; k < 6; k++) column(g, c, -6.5 + k * 2.6, 4.8, 6, 0.38, y);
+      door(g, c, y, 3.6, 2.2, 3.2);
+      // vasque olympique
+      const fl = new THREE.MeshStandardMaterial({ color: "#ffb347", emissive: "#ff7a1a", emissiveIntensity: 0.9 });
+      g.add(at(cyl(0.55, 0.75, 4.2, c.marble, 20), 11.2, 2.1, 4.2));
+      g.add(at(cyl(1.3, 0.5, 0.9, c.gold, 24), 11.2, 4.6, 4.2));
+      const flame = at(new THREE.Mesh(new THREE.SphereGeometry(0.75, 16, 12), fl), 11.2, 5.5, 4.2);
+      flame.scale.set(1, 1.6, 1);
+      flame.userData.flame = true;
+      g.add(flame);
+      // piste d’athlétisme derrière le gymnase
+      const trackM = std("#c8603f", { roughness: 0.8 });
+      const white = std("#f6f3ee", { roughness: 0.7 });
+      const turf = std("#6fae55", { roughness: 0.9 });
+      const z0 = -29;
+      g.add(at(Object.assign(new THREE.Mesh(rboxGeo(26, 0.14, 44, 12.99), trackM), { receiveShadow: true }), 0, 0.07, z0));
+      g.add(at(Object.assign(new THREE.Mesh(rboxGeo(22.4, 0.16, 40.4, 11.19), white), { receiveShadow: true }), 0, 0.08, z0));
+      g.add(at(Object.assign(new THREE.Mesh(rboxGeo(21.8, 0.17, 39.8, 10.89), trackM), { receiveShadow: true }), 0, 0.085, z0));
+      g.add(at(Object.assign(new THREE.Mesh(rboxGeo(18, 0.19, 36, 8.99), turf), { receiveShadow: true }), 0, 0.095, z0));
+      g.add(at(rbox(18, 0.05, 0.25, 0.1, white), 0, 0.22, z0));
+      [-1, 1].forEach((s) => {
+        g.add(at(cyl(0.1, 0.1, 2, white, 8), -2, 1, z0 + s * 15));
+        g.add(at(cyl(0.1, 0.1, 2, white, 8), 2, 1, z0 + s * 15));
+        g.add(at(rbox(4.2, 0.2, 0.2, 0.08, white), 0, 2, z0 + s * 15));
+      });
+      // tribunes
+      for (let k = 0; k < 4; k++) g.add(at(rbox(2.2, 0.9 + k * 0.9, 30, 0.5, k % 2 ? c.marble2 : c.marble), 15.2 + k * 2, (0.9 + k * 0.9) / 2, z0));
+      g.add(at(rbox(9, 0.3, 31, 1, c.color), 18.2, 5.6, z0));
+      [-14, 0, 14].forEach((dz) => g.add(at(cyl(0.12, 0.12, 5.6, c.gold, 8), 21.6, 2.8, z0 + dz)));
+      return y + 9;
+    },
+    // Construction : chantier-école, halle voûtée, grue, mur en cours, échafaudage
+    workshop(g, c) {
+      const y = steps(g, c, 16, 12, 2, 0.4);
+      g.add(at(rbox(14, 3.2, 9, 1.4, c.marble), 0, y + 1.6, -0.8));
+      const vault = shadowy(new THREE.Mesh(new THREE.CylinderGeometry(4.5, 4.5, 14, 40, 1, false, 0, Math.PI), c.glass));
+      vault.rotation.z = Math.PI / 2;
+      vault.rotation.x = 0;
+      const vg = new THREE.Group();
+      vg.add(vault);
+      vg.rotation.y = 0;
+      vg.position.set(0, y + 3.2, -0.8);
+      g.add(vg);
+      for (let k = 0; k < 6; k++) {
+        const rib = shadowy(new THREE.Mesh(new THREE.TorusGeometry(4.55, 0.12, 8, 32, Math.PI), c.color));
+        rib.position.set(-6.5 + k * 2.6, y + 3.2, -0.8);
+        rib.rotation.y = Math.PI / 2;
+        g.add(rib);
+      }
+      for (let k = 0; k < 4; k++) column(g, c, -4.5 + k * 3, 3.9, 3.2, 0.34, y);
+      door(g, c, y, 3.75, 2.4, 2.6);
+      // grue à tour
+      const yellow = phys({ color: c.color.color, roughness: 0.35, clearcoat: 0.8 });
+      const crane = new THREE.Group();
+      crane.add(at(rbox(3, 0.8, 3, 0.4, c.marble2), 0, 0.4, 0));
+      for (let k = 0; k < 9; k++) crane.add(at(rbox(1.2, 2.1, 1.2, 0.2, yellow), 0, 0.8 + k * 2.2 + 1.05, 0));
+      crane.add(at(rbox(1.6, 1.4, 1.6, 0.3, c.marble), 0, 21.3, 0));
+      crane.add(at(rbox(1, 0.7, 16, 0.25, yellow), 0, 22.4, -5));
+      crane.add(at(rbox(1.6, 1.2, 3, 0.3, c.dark), 0, 22.3, 4.5));
+      crane.add(at(cyl(0.12, 0.25, 3.2, yellow, 8), 0, 24, 0));
+      const hook = at(cyl(0.03, 0.03, 9, c.dark, 4), 0, 17.6, -11);
+      crane.add(hook);
+      crane.add(at(rbox(1.4, 0.8, 1.4, 0.2, c.marble2), 0, 12.7, -11));
+      crane.position.set(-12, 0, -12);
+      crane.userData.crane = true;
+      g.add(crane);
+      // mur en cours de construction + palettes de blocs + échafaudage
+      const brick = std("#d9cfc0", { roughness: 0.8 });
+      for (let r = 0; r < 5; r++)
+        for (let k = 0; k < 6 - (r > 2 ? r - 2 : 0); k++) g.add(at(rbox(1.5, 0.6, 0.6, 0.08, brick), 9.5 + k * 1.58 + (r % 2) * 0.79, 0.3 + r * 0.62, -10));
+      [[10.5, -5], [13.5, -5]].forEach(([x, z]) => {
+        g.add(at(rbox(1.8, 0.2, 1.8, 0.1, std("#9a6b45")), x, 0.1, z));
+        g.add(at(rbox(1.6, 1.2, 1.6, 0.15, brick), x, 0.8, z));
+      });
+      const scaf = phys({ color: "#c9cdd2", metalness: 0.6, roughness: 0.3 });
+      [[8.5, -12.5], [8.5, -14.5], [19, -12.5], [19, -14.5]].forEach(([x, z]) => g.add(at(cyl(0.07, 0.07, 6, scaf, 6), x, 3, z)));
+      [2, 4, 6].forEach((h) => g.add(at(rbox(11, 0.12, 2.2, 0.06, std("#b88a55")), 13.75, h, -13.5)));
+      // cônes de chantier
+      const cone = std("#e2672a");
+      for (let k = 0; k < 4; k++) g.add(at(shadowy(new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.8, 12), cone)), -7 + k * 1.6, 0.4, 6.5));
+      return y + 9;
+    },
+    // Nutrition et cuisine : restaurant, terrasse, pergola, potager
+    restaurant(g, c) {
+      const y = steps(g, c, 16, 12, 2, 0.4);
+      g.add(at(rbox(12, 5, 8, 2.5, c.marble), 0, y + 2.5, -1.5));
+      g.add(at(rbox(10.6, 3.8, 0.5, 0.3, c.glass), 0, y + 2.2, 2.45));
+      door(g, c, y, 2.75, 1.8, 3);
+      g.add(at(rbox(13, 0.35, 3.2, 0.8, c.color), 0, y + 4.5, 3.4));
+      g.add(at(rbox(12.6, 0.5, 8.6, 2.6, c.gold), 0, y + 5.25, -1.5));
+      g.add(at(rbox(10.6, 0.5, 6.4, 2, std("#7cb35a")), 0, y + 5.7, -1.5));
+      for (let k = 0; k < 5; k++) g.add(at(sph(0.45, std("#5f9e47")), -4 + k * 2, y + 6.15, -1.5 + (k % 2 ? 1.2 : -1.2)));
+      g.add(at(cyl(0.5, 0.6, 3, c.marble, 16), 4.5, y + 7, -3.5));
+      g.add(at(cyl(0.7, 0.7, 0.25, c.gold, 16), 4.5, y + 8.6, -3.5));
+      // terrasse
+      g.add(at(Object.assign(new THREE.Mesh(rboxGeo(17, 0.24, 6.5, 1.5), c.marble2), { receiveShadow: true }), 0, 0.12, 9.3));
+      const top = phys({ color: "#ffffff", roughness: 0.3, clearcoat: 1 });
+      [[-5, 8], [0, 8.2], [5, 8], [-2.5, 10.8], [2.5, 10.8]].forEach(([x, z]) => {
+        g.add(at(cyl(0.08, 0.12, 0.9, c.gold, 8), x, 0.7, z));
+        g.add(at(cyl(0.8, 0.8, 0.1, top, 24), x, 1.2, z));
+        g.add(at(cyl(0.05, 0.05, 2.4, c.gold, 6), x, 2.4, z));
+        const um = dome(1.5, c.color);
+        um.scale.y = 0.45;
+        g.add(at(um, x, 3.4, z));
+      });
+      // pergola
+      [[-10, -3], [-10, 3], [-13.5, -3], [-13.5, 3]].forEach(([x, z]) => g.add(at(cyl(0.18, 0.18, 4, c.gold, 10), x, 2, z)));
+      for (let k = 0; k < 5; k++) g.add(at(rbox(4.6, 0.18, 0.3, 0.08, c.marble), -11.75, 4.1, -3 + k * 1.5));
+      // potager
+      const wood = std("#9a6b45"), soil = std("#6b4a32"), leaf = std("#6fb04f");
+      for (let k = 0; k < 4; k++) {
+        const x = -6 + k * 4;
+        g.add(at(rbox(2.6, 0.6, 6, 0.4, wood), x, 0.3, -12));
+        g.add(at(rbox(2.1, 0.1, 5.5, 0.3, soil), x, 0.62, -12));
+        for (let j = 0; j < 4; j++) g.add(at(sph(0.38, leaf, 10, 8), x, 0.85, -14 + j * 1.35));
+      }
+      return y + 9;
     },
   };
 
@@ -430,7 +564,8 @@
       const ux = fx / n, uz = fz / n;
       const sx = slot.x + ux * front, sz = slot.z + uz * front;
       let L = 0;
-      while (L < 80 && !(Math.abs(sx + ux * L) <= QX && Math.abs(sz + uz * L) <= QZ)) L += 0.5;
+      const reached = (x, z) => (Math.abs(x) <= QX && Math.abs(z) <= QZ) || (Math.abs(x) <= 2.5 && z > QZ && z < QZ + 60) || (Math.abs(z) <= 1.75 && Math.abs(x) < 82);
+      while (L < 80 && !reached(sx + ux * L, sz + uz * L)) L += 0.5;
       if (L < 1) return;
       pave(3, L + 1, sx + (ux * L) / 2, sz + (uz * L) / 2, Math.atan2(ux, uz));
     }
@@ -455,15 +590,17 @@
       });
     }
 
-    faculties.forEach((fac, i) => {
-      const slot = SLOTS[i % SLOTS.length];
+    let si = 0;
+    faculties.forEach((fac) => {
+      const sp = SPECIAL[fac.style];
+      const slot = sp || SLOTS[si++ % SLOTS.length];
       const g = new THREE.Group();
       place(g, slot);
       const open = fac.status === "open";
       const top = (BUILDERS[fac.style] || BUILDERS.temple)(g, palette(fac.color, open));
       register(g, fac.id);
       scene.add(g);
-      pathTo(slot, 7.5);
+      pathTo(slot, sp ? sp.front : 7.5);
 
       const n = Math.hypot(slot.f[0], slot.f[1]);
       const ux = slot.f[0] / n, uz = slot.f[1] / n;
@@ -471,7 +608,8 @@
       if (open) {
         halo = new THREE.Mesh(new THREE.RingGeometry(1.6, 2.3, 48), new THREE.MeshBasicMaterial({ color: fac.color, transparent: true, opacity: 0.7, side: THREE.DoubleSide }));
         halo.rotation.x = -Math.PI / 2;
-        halo.position.set(slot.x + ux * 10, 0.25, slot.z + uz * 10);
+        const hd = (sp ? sp.front : 7.5) + 2.5;
+        halo.position.set(slot.x + ux * hd, 0.25, slot.z + uz * hd);
         scene.add(halo);
         // oriflammes arrondies de part et d’autre de l’entrée
         [-1, 1].forEach((s) => {
@@ -541,11 +679,16 @@
     }
     const blocked = (x, z) => {
       for (const b of buildings) {
+        if (b.slot.c) {
+          if (Math.hypot(x - b.slot.c[0], z - b.slot.c[1]) < b.slot.clear) return true;
+          continue;
+        }
         const r = b.id === LIB ? 28 : 14;
         if (Math.hypot(x - b.slot.x, z - b.slot.z) < r) return true;
       }
       if (Math.abs(x) < QX + 4 && Math.abs(z) < QZ + 4) return true; // Quad
       if (Math.abs(x) < 9 && z > QZ && z < QZ + 64) return true; // avenue
+      if (Math.abs(z) < 6 && Math.abs(x) < 90) return true; // allée est-ouest
       return false;
     };
     // rangées d’arbres dans le Quad, le long du pourtour (hors diagonales)
@@ -605,6 +748,13 @@
       lamp(QX + 2.6, z);
     }
 
+    for (let x = QX + 8; x < 74; x += 10) {
+      lamp(x, 3);
+      lamp(-x, -3);
+    }
+    const flames = [];
+    scene.traverse((o) => o.userData.flame && flames.push(o));
+
     /* ---------- Nuages arrondis ---------- */
     const clouds = [];
     const cloudM = phys({ color: "#ffffff", roughness: 0.7, clearcoat: 0.3, transparent: true, opacity: 0.92 });
@@ -620,28 +770,96 @@
       scene.add(c);
     }
 
-    /* ---------- Caméra orbitale ---------- */
+    /* ---------- Obstacles (balade) ---------- */
+    const colliders = [{ x: 0, z: 0, r: 6.2 }]; // fontaine
+    [-5.4, -2.2, 2.2, 5.4].forEach((x) => colliders.push({ x, z: QZ + 22, r: 0.9 }));
+    const toWorld = (slot, lx, lz) => {
+      const th = Math.atan2(slot.f[0], slot.f[1]);
+      return [slot.x + lx * Math.cos(th) + lz * Math.sin(th), slot.z - lx * Math.sin(th) + lz * Math.cos(th)];
+    };
+    const LOCAL_COLL = {
+      stadium: [[-4.5, 0, 6.5], [4.5, 0, 6.5], [11.2, 4.2, 1.3], [18, -40, 4.5], [18, -29, 4.5], [18, -18, 4.5]],
+      restaurant: [[-3.5, -1, 6.5], [3.5, -1, 6.5], [-2, -12, 5.5], [4, -12, 5]],
+      workshop: [[-3.5, -0.5, 7], [3.5, -0.5, 7], [-12, -12, 2.2], [13.5, -10, 5], [12, -5, 2.5]],
+      library: [[0, 0, 13.5], [-15.5, -2, 6.5], [15.5, -2, 6.5]],
+      default: [[-3.5, 0, 7], [3.5, 0, 7]],
+    };
+    buildings.forEach((b) => {
+      const kind = b.id === LIB ? "library" : LOCAL_COLL[b.fac.style] ? b.fac.style : "default";
+      LOCAL_COLL[kind].forEach(([lx, lz, r]) => {
+        const [x, z] = toWorld(b.slot, lx, lz);
+        colliders.push({ x, z, r });
+      });
+      const n = Math.hypot(b.slot.f[0], b.slot.f[1]);
+      const front = b.id === LIB ? 16 : (SPECIAL[b.fac && b.fac.style] || {}).front || 7.5;
+      b.door = { x: b.slot.x + (b.slot.f[0] / n) * (front + 4), z: b.slot.z + (b.slot.f[1] / n) * (front + 4) };
+    });
+    scene.traverse((o) => {
+      if (o.isGroup && o.children.length && o.children[0].geometry === trunkG) colliders.push({ x: o.position.x, z: o.position.z, r: 0.55 * o.scale.x });
+    });
+
+    /* ---------- Caméras : balade (à hauteur d’yeux) et vue du ciel ---------- */
+    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    const EYE = 3.2, PR = 0.8;
+    const player = { x: 0, z: QZ + 36, yaw: Math.PI, pitch: -0.04 };
+    let mode = "walk";
+    let target = null; // { x, z, id? }
+    let bob = 0;
+    const keys = new Set();
     const homeR = () => {
       const asp = W() / H();
-      return asp < 1 ? Math.min(190, 112 * (1 + (1 - asp) * 1.1)) : 112;
+      return asp < 1 ? Math.min(210, 128 * (1 + (1 - asp) * 1.1)) : 128;
     };
     const HOME = { target: new THREE.Vector3(0, 2, 2), r: homeR(), phi: 0.92 };
-    const setFog = () => {
-      scene.fog.near = HOME.r + 20;
-      scene.fog.far = HOME.r + 170;
-    };
-    setFog();
-    const ctl = { target: HOME.target.clone(), r: 240, theta: Math.PI / 2 + 0.35, phi: 0.7 };
-    const goal = { target: HOME.target.clone(), r: HOME.r, theta: Math.PI / 2 + 0.35, phi: HOME.phi };
+    const sky = { target: HOME.target.clone(), r: HOME.r, theta: Math.PI / 2, phi: HOME.phi };
+    const camPos = new THREE.Vector3(0, 140, 210), camLook = new THREE.Vector3(0, 0, 0);
+    const wantPos = new THREE.Vector3(), wantLook = new THREE.Vector3();
+    let soft = performance.now() + 2600; // transition douce (arrivée, changement de vue)
     let focused = null,
-      lastInteract = performance.now(),
       paused = false;
-    function applyCam() {
-      const sp = Math.sin(ctl.phi);
-      camera.position.set(ctl.target.x + ctl.r * sp * Math.cos(ctl.theta), ctl.target.y + ctl.r * Math.cos(ctl.phi), ctl.target.z + ctl.r * sp * Math.sin(ctl.theta));
-      camera.lookAt(ctl.target);
+
+    function setFog() {
+      if (mode === "walk") {
+        scene.fog.near = 60;
+        scene.fog.far = 240;
+      } else {
+        scene.fog.near = sky.r + 20;
+        scene.fog.far = sky.r + 170;
+      }
     }
-    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+    setFog();
+
+    // marqueur de destination
+    const marker = new THREE.Mesh(new THREE.RingGeometry(0.7, 1.05, 40), new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0, depthWrite: false }));
+    marker.rotation.x = -Math.PI / 2;
+    marker.position.y = 0.3;
+    scene.add(marker);
+
+    // bouton balade / vue du ciel
+    const toggle = document.createElement("button");
+    toggle.className = "view-toggle";
+    labelsEl.appendChild(toggle);
+    const renderToggle = () => (toggle.innerHTML = mode === "walk" ? "<span>🗺️</span> Vue du ciel" : "<span>🚶</span> Se balader");
+    renderToggle();
+    toggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setMode(mode === "walk" ? "sky" : "walk");
+    });
+    function setMode(m) {
+      if (m === mode) return;
+      mode = m;
+      target = null;
+      focused = null;
+      if (mode === "sky") {
+        sky.target.set(player.x * 0.5, 2, player.z * 0.5);
+        sky.r = HOME.r;
+        sky.phi = HOME.phi;
+        sky.theta = Math.atan2(player.z - sky.target.z, player.x - sky.target.x) || Math.PI / 2;
+      }
+      soft = performance.now() + 2200;
+      setFog();
+      renderToggle();
+    }
 
     /* ---------- Entrées ---------- */
     const pointers = new Map();
@@ -658,9 +876,8 @@
       if (pointers.size === 1) dragDist = 0;
       if (pointers.size === 2) {
         pinch0 = pdist();
-        pinchR = goal.r;
+        pinchR = sky.r;
       }
-      lastInteract = performance.now();
     });
     canvas.addEventListener("pointermove", (e) => {
       if (!pointers.has(e.pointerId)) return hover(e);
@@ -668,23 +885,40 @@
       const dx = e.clientX - prev.x,
         dy = e.clientY - prev.y;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      lastInteract = performance.now();
       if (pointers.size === 1) {
-        goal.theta += dx * 0.006;
-        goal.phi = clamp(goal.phi - dy * 0.004, 0.4, 1.38);
         dragDist += Math.abs(dx) + Math.abs(dy);
-      } else if (pointers.size === 2) {
-        goal.r = clamp((pinchR * pinch0) / Math.max(pdist(), 1), 24, 220);
+        if (dragDist < 4) return;
+        canvas.style.cursor = "grabbing";
+        if (mode === "walk") {
+          player.yaw += dx * 0.0045;
+          player.pitch = clamp(player.pitch + dy * 0.0035, -0.75, 0.6);
+        } else {
+          sky.theta += dx * 0.006;
+          sky.phi = clamp(sky.phi - dy * 0.004, 0.4, 1.38);
+        }
+      } else if (pointers.size === 2 && mode === "sky") {
+        sky.r = clamp((pinchR * pinch0) / Math.max(pdist(), 1), 24, 220);
         dragDist += 20;
       }
     });
     const up = (e) => {
       const wasTap = pointers.size === 1 && dragDist < 6;
       pointers.delete(e.pointerId);
-      if (wasTap && e.type === "pointerup") {
-        const id = pick(e);
-        if (id) select(id);
-      }
+      canvas.style.cursor = "";
+      if (!wasTap || e.type !== "pointerup") return;
+      const id = pick(e);
+      if (id) return select(id);
+      const g = groundAt(e);
+      if (!g) return;
+      if (mode === "sky") {
+        // descendre se balader à l’endroit cliqué
+        player.x = g.x;
+        player.z = g.z;
+        player.yaw = Math.atan2(-g.x, -g.z);
+        player.pitch = -0.04;
+        resolve();
+        setMode("walk");
+      } else walkTo(g.x, g.z);
     };
     canvas.addEventListener("pointerup", up);
     canvas.addEventListener("pointercancel", up);
@@ -692,57 +926,200 @@
       "wheel",
       (e) => {
         e.preventDefault();
-        goal.r = clamp(goal.r * (1 + e.deltaY * 0.001), 24, 220);
-        lastInteract = performance.now();
+        if (mode === "sky") sky.r = clamp(sky.r * (1 + e.deltaY * 0.001), 24, 220);
+        else {
+          // molette : avancer / reculer
+          const step = clamp(-e.deltaY * 0.03, -6, 6);
+          target = null;
+          player.x += Math.sin(player.yaw) * step;
+          player.z += Math.cos(player.yaw) * step;
+          resolve();
+        }
       },
       { passive: false }
     );
+    const MOVE_KEYS = ["z", "w", "s", "q", "a", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", "shift"];
+    window.addEventListener("keydown", (e) => {
+      const tag = (e.target && e.target.tagName) || "";
+      if (paused || tag === "INPUT" || tag === "TEXTAREA") return;
+      const k = e.key.toLowerCase();
+      if (!MOVE_KEYS.includes(k)) return;
+      if (mode === "sky") setMode("walk");
+      keys.add(k);
+      target = null;
+      if (k.startsWith("arrow")) e.preventDefault();
+    });
+    window.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
+    window.addEventListener("blur", () => keys.clear());
 
     const ray = new THREE.Raycaster(),
-      ndc = new THREE.Vector2();
-    function pick(e) {
+      ndc = new THREE.Vector2(),
+      groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0),
+      hitP = new THREE.Vector3();
+    function setRay(e) {
       const rect = canvas.getBoundingClientRect();
       ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
       ray.setFromCamera(ndc, camera);
+    }
+    function pick(e) {
+      setRay(e);
       const hit = ray.intersectObjects(pickables, false)[0];
       return hit ? hit.object.userData.fid : null;
+    }
+    function groundAt(e) {
+      setRay(e);
+      if (!ray.ray.intersectPlane(groundPlane, hitP)) return null;
+      const d = Math.hypot(hitP.x - player.x, hitP.z - player.z);
+      if (mode === "walk" && d > 140) return null;
+      const r = Math.hypot(hitP.x, hitP.z);
+      if (r > 165) return null;
+      return { x: hitP.x, z: hitP.z };
     }
     let hovered = null;
     function hover(e) {
       const id = pick(e);
       if (id === hovered) return;
       hovered = id;
-      canvas.style.cursor = id ? "pointer" : "grab";
+      canvas.style.cursor = id ? "pointer" : "";
       buildings.forEach((b) => b.label.classList.toggle("hover", b.id === id));
     }
 
-    function select(id) {
+    function walkTo(x, z, id) {
+      target = { x, z, id: id || null, since: performance.now(), lastD: Infinity, stuck: 0 };
+      marker.position.x = x;
+      marker.position.z = z;
+      marker.material.opacity = id ? 0 : 0.9;
+    }
+    function openBuilding(id) {
       const b = buildings.find((x) => x.id === id);
       if (!b) return;
-      focus(id);
+      focused = id;
       if (id === LIB) opts.onLibrary && opts.onLibrary();
       else opts.onSelect && opts.onSelect(b.fac);
     }
+    function select(id) {
+      const b = buildings.find((x) => x.id === id);
+      if (!b) return;
+      if (mode === "sky") {
+        skyFocus(b);
+        return openBuilding(id);
+      }
+      if (Math.hypot(player.x - b.door.x, player.z - b.door.z) < 5) {
+        faceBuilding(b);
+        return openBuilding(id);
+      }
+      walkTo(b.door.x, b.door.z, id);
+    }
+    function faceBuilding(b) {
+      player.yaw = Math.atan2(b.slot.x - player.x, b.slot.z - player.z);
+      player.pitch = 0.12;
+    }
+    function skyFocus(b) {
+      const n = Math.hypot(b.slot.f[0], b.slot.f[1]);
+      const ux = b.slot.f[0] / n, uz = b.slot.f[1] / n;
+      const lib = b.id === LIB;
+      sky.target.set(b.slot.x + ux * (lib ? 8 : 5), lib ? 8 : 5.5, b.slot.z + uz * (lib ? 8 : 5));
+      let th = Math.atan2(uz, ux);
+      th += Math.PI * 2 * Math.round((sky.theta - th) / (Math.PI * 2));
+      sky.theta = th + 0.25;
+      sky.r = lib ? 52 : b.slot.view || Math.max(34, b.top * 1.9);
+      sky.phi = 1.16;
+    }
+    // accès direct (liste du campus) : on se retrouve devant la porte
     function focus(id) {
       const b = buildings.find((x) => x.id === id);
       if (!b) return;
       focused = id;
-      const n = Math.hypot(b.slot.f[0], b.slot.f[1]);
-      const ux = b.slot.f[0] / n, uz = b.slot.f[1] / n;
-      const lib = id === LIB;
-      goal.target.set(b.slot.x + ux * (lib ? 8 : 5), lib ? 8 : 5.5, b.slot.z + uz * (lib ? 8 : 5));
-      let th = Math.atan2(uz, ux);
-      th += Math.PI * 2 * Math.round((ctl.theta - th) / (Math.PI * 2));
-      goal.theta = th + 0.25;
-      goal.r = lib ? 52 : Math.max(34, b.top * 1.9);
-      goal.phi = 1.16;
+      target = null;
+      if (mode === "sky") return skyFocus(b);
+      player.x = b.door.x;
+      player.z = b.door.z;
+      faceBuilding(b);
+      soft = performance.now() + 1500;
     }
     function unfocus() {
       focused = null;
-      goal.target.copy(HOME.target);
-      goal.r = HOME.r;
-      goal.phi = HOME.phi;
-      lastInteract = performance.now();
+      if (mode === "sky") {
+        sky.target.copy(HOME.target);
+        sky.r = HOME.r;
+        sky.phi = HOME.phi;
+      } else player.pitch = -0.04;
+    }
+
+    function resolve() {
+      for (let pass = 0; pass < 2; pass++)
+        for (const c of colliders) {
+          const dx = player.x - c.x, dz = player.z - c.z;
+          const d = Math.hypot(dx, dz), min = c.r + PR;
+          if (d < min) {
+            const nx = d > 1e-4 ? dx / d : 1, nz = d > 1e-4 ? dz / d : 0;
+            player.x = c.x + nx * min;
+            player.z = c.z + nz * min;
+          }
+        }
+      const r = Math.hypot(player.x, player.z);
+      if (r > 165) {
+        player.x *= 165 / r;
+        player.z *= 165 / r;
+      }
+    }
+    const angDiff = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
+
+    function updateWalk(dt, t) {
+      let mx = 0, mz = 0, speed = 0;
+      const fx = Math.sin(player.yaw), fz = Math.cos(player.yaw);
+      const turn = (keys.has("arrowleft") ? 1 : 0) - (keys.has("arrowright") ? 1 : 0);
+      player.yaw += turn * dt * 1.9;
+      const fwd = (keys.has("z") || keys.has("w") || keys.has("arrowup") ? 1 : 0) - (keys.has("s") || keys.has("arrowdown") ? 1 : 0);
+      const side = (keys.has("d") ? 1 : 0) - (keys.has("q") || keys.has("a") ? 1 : 0);
+      if (fwd || side) {
+        mx = fx * fwd - fz * side;
+        mz = fz * fwd + fx * side;
+        speed = keys.has("shift") ? 20 : 11;
+      } else if (target) {
+        const dx = target.x - player.x, dz = target.z - player.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.6) {
+          const id = target.id;
+          target = null;
+          if (id) {
+            const b = buildings.find((x) => x.id === id);
+            faceBuilding(b);
+            setTimeout(() => openBuilding(id), 250);
+          }
+        } else {
+          mx = dx / d;
+          mz = dz / d;
+          speed = Math.min(target.id ? 18 : 12, d * 3 + 2);
+          if (pointers.size === 0) player.yaw += angDiff(player.yaw, Math.atan2(dx, dz)) * Math.min(1, dt * 3.5);
+          // bloqué contre un obstacle : on s’arrête (ou on entre si on est tout près)
+          if (d > target.lastD - 0.01) target.stuck += dt;
+          else target.stuck = 0;
+          target.lastD = d;
+          if (target.stuck > 0.6) {
+            const id = target.id;
+            target = null;
+            if (id && d < 14) openBuilding(id);
+          }
+        }
+      }
+      if (speed) {
+        const n = Math.hypot(mx, mz) || 1;
+        player.x += (mx / n) * speed * dt;
+        player.z += (mz / n) * speed * dt;
+        bob += dt * speed * 0.9;
+        resolve();
+      }
+      marker.material.opacity = target && !target.id ? 0.55 + 0.35 * Math.sin(t / 180) : Math.max(0, marker.material.opacity - dt * 2);
+      const cp = Math.cos(player.pitch);
+      const y = EYE + (speed ? Math.sin(bob) * 0.07 : 0);
+      wantPos.set(player.x, y, player.z);
+      wantLook.set(player.x + Math.sin(player.yaw) * cp * 10, y + Math.sin(player.pitch) * 10, player.z + Math.cos(player.yaw) * cp * 10);
+    }
+    function updateSky() {
+      const sp = Math.sin(sky.phi);
+      wantPos.set(sky.target.x + sky.r * sp * Math.cos(sky.theta), sky.target.y + sky.r * Math.cos(sky.phi), sky.target.z + sky.r * sp * Math.sin(sky.theta));
+      wantLook.copy(sky.target);
     }
 
     /* ---------- Boucle ---------- */
@@ -750,22 +1127,32 @@
     let last = performance.now();
     function frame(t) {
       requestAnimationFrame(frame);
-      const dt = Math.min(0.05, (t - last) / 1000);
+      const dt = Math.min(0.1, (t - last) / 1000);
       last = t;
       if (paused) return;
-      if (!focused && pointers.size === 0 && t - lastInteract > 5000) goal.theta += dt * 0.03;
-      const k = 1 - Math.exp(-dt * 2.6);
-      ctl.target.lerp(goal.target, k);
-      ctl.r += (goal.r - ctl.r) * k;
-      ctl.theta += (goal.theta - ctl.theta) * k;
-      ctl.phi += (goal.phi - ctl.phi) * k;
-      applyCam();
+      if (mode === "walk") updateWalk(dt, t);
+      else updateSky();
+      const rate = t < soft ? 2.4 : mode === "walk" ? 18 : 5;
+      const k = 1 - Math.exp(-dt * rate);
+      camPos.lerp(wantPos, k);
+      camLook.lerp(wantLook, k);
+      const fov = mode === "walk" ? 62 : 42;
+      if (Math.abs(camera.fov - fov) > 0.05) {
+        camera.fov += (fov - camera.fov) * (1 - Math.exp(-dt * 3));
+        camera.updateProjectionMatrix();
+      }
+      camera.position.copy(camPos);
+      camera.lookAt(camLook);
 
       globe.rotation.y += dt * 0.4;
       globe.position.y = 7 + Math.sin(t / 900) * 0.2;
       orbit.position.y = globe.position.y;
       orbit.rotation.x = 1.2 + Math.sin(t / 2000) * 0.15;
       orbit.rotation.z += dt * 0.5;
+      flames.forEach((f, i) => {
+        f.scale.y = 1.6 + Math.sin(t / 120 + i) * 0.18;
+        f.scale.x = f.scale.z = 1 + Math.sin(t / 90 + i) * 0.06;
+      });
       clouds.forEach((c, i) => {
         c.position.x += dt * (0.6 + i * 0.08);
         if (c.position.x > 170) c.position.x = -170;
@@ -777,13 +1164,15 @@
           b.halo.material.opacity = 0.45 + 0.3 * Math.sin(t / 400);
         }
         v.copy(b.anchor).project(camera);
-        const visible = v.z < 1 && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2;
+        const far = mode === "walk" && Math.hypot(b.slot.x - player.x, b.slot.z - player.z) > 120;
+        const visible = !far && v.z < 1 && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2;
         b.label.style.display = visible ? "" : "none";
         if (visible) b.label.style.transform = `translate(-50%,-100%) translate(${(v.x * 0.5 + 0.5) * W()}px,${(-v.y * 0.5 + 0.5) * H()}px)`;
       });
       renderer.render(scene, camera);
     }
-    applyCam();
+    camera.position.copy(camPos);
+    camera.lookAt(camLook);
     requestAnimationFrame(frame);
 
     window.addEventListener("resize", () => {
@@ -791,15 +1180,17 @@
       camera.aspect = W() / H();
       camera.updateProjectionMatrix();
       HOME.r = homeR();
-      if (!focused) goal.r = HOME.r;
+      if (mode === "sky" && !focused) sky.r = HOME.r;
       setFog();
     });
 
     return {
       focus,
       unfocus,
+      setMode,
       setPaused(p) {
         paused = p;
+        if (p) keys.clear();
         labelsEl.style.visibility = p ? "hidden" : "";
         if (!p) last = performance.now();
       },

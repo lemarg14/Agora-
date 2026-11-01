@@ -6,7 +6,7 @@
    ============================================================ */
 (function () {
   const A = (window.AGORA = window.AGORA || {});
-  const LABELS = { slide: "Cours", cards: "Flashcards", sort: "Classement", quiz: "Quiz", case: "Cas pratique", fiche: "Ta fiche" };
+  const LABELS = { slide: "Cours", cards: "Flashcards", sort: "Classement", quiz: "Quiz", case: "Cas pratique", fiche: "Ta fiche", type: "À toi d’écrire" };
   const XP = { session: 100, quiz: 10, case: 20, sort: 5 };
 
   function flatten(session) {
@@ -19,6 +19,90 @@
     return out;
   }
   const fmt = (s) => Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+
+  /* ---------- Prononciation (synthèse vocale du navigateur, gratuite) ---------- */
+  A.canSpeak = typeof window !== "undefined" && "speechSynthesis" in window;
+  let voices = [];
+  const loadVoices = () => (voices = A.canSpeak ? window.speechSynthesis.getVoices() : []);
+  if (A.canSpeak) {
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }
+  A.speak = function (text, lang, rate) {
+    if (!A.canSpeak || !text) return;
+    const clean = String(text).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const u = new SpeechSynthesisUtterance(clean);
+    u.lang = lang || "en-GB";
+    const base = u.lang.slice(0, 2);
+    const v = voices.find((x) => x.lang === u.lang) || voices.find((x) => x.lang && x.lang.slice(0, 2) === base);
+    if (v) u.voice = v;
+    u.rate = rate || 0.9;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  };
+  const sayBtn = (t, slow) => (A.canSpeak ? `<span class="say-btn" role="button" tabindex="0" data-say="${esc(t)}"${slow ? ' data-slow="1"' : ""} title="Écouter">🔊</span>` : "");
+
+  /* ---------- Cyrillique : translittération à la française ---------- */
+  const CYR = { а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "io", ж: "j", з: "z", и: "i", й: "ï", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "ou", ф: "f", х: "kh", ц: "ts", ч: "tch", ш: "ch", щ: "chtch", ъ: "", ы: "y", ь: "'", э: "è", ю: "iou", я: "ia" };
+  const HAS_CYR = /[\u0400-\u04FF]/;
+  A.translit = (t) =>
+    String(t).replace(/[\u0400-\u04FF]/g, (ch) => {
+      const lo = ch.toLowerCase(),
+        r = CYR[lo];
+      if (r === undefined) return ch;
+      return ch !== lo && r ? r[0].toUpperCase() + r.slice(1) : r;
+    });
+  // forme « squelette » commune au cyrillique et à ses translittérations (fr / en)
+  const ruKey = (t) =>
+    t
+      .replace(/[\u0400-\u04FF]/g, (ch) => (CYR[ch] !== undefined ? CYR[ch] : ch))
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/'/g, "")
+      .replace(/shch|chtch|sch|tch|sh|ch|ts|tz/g, "c")
+      .replace(/zh/g, "j")
+      .replace(/kh/g, "h")
+      .replace(/ou/g, "u")
+      .replace(/w/g, "v")
+      .replace(/y/g, "i")
+      .replace(/ie/g, "e")
+      .replace(/([a-z])\1+/g, "$1");
+
+  /* ---------- Comparaison tolérante des réponses écrites ---------- */
+  const norm = (t) =>
+    String(t)
+      .toLowerCase()
+      .replace(/[’‘`´]/g, "'")
+      .replace(/[ʿʾ]/g, "")
+      .replace(/ł/g, "l")
+      .replace(/ø/g, "o")
+      .replace(/[\u064B-\u0652\u0670\u0640]/g, "")
+      .replace(/[أإآٱ]/g, "ا")
+      .replace(/ى/g, "ي")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[.,!?;:«»"()¿¡؟،]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  function lev(a, b) {
+    const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= b.length; j++) d[0][j] = j;
+    for (let i = 1; i <= a.length; i++)
+      for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[a.length][b.length];
+  }
+  // 2 = exact, 1 = presque (une faute de frappe), 0 = faux
+  A.checkAnswer = function (given, answers, lang) {
+    const ru = lang && lang.startsWith("ru");
+    const n = (t) => (ru ? ruKey(norm(t)) : norm(t));
+    const g = n(given);
+    if (!g) return 0;
+    const list = (Array.isArray(answers) ? answers : [answers]).map(n);
+    if (list.includes(g)) return 2;
+    if (list.some((a) => a.length >= 5 && lev(a, g) <= 1)) return 1;
+    return 0;
+  };
 
   A.renderFiche = function (f, color) {
     return `<article class="fiche" style="--acc:${color || "var(--accent)"}">
@@ -58,6 +142,15 @@
         </div>
       </div>`;
     const body = root.querySelector(".player-body");
+    const lang = course.lang;
+    // tout élément [data-say] (ou .say) se prononce au clic
+    root.addEventListener("click", (e) => {
+      const el = e.target.closest("[data-say], .say");
+      if (!el || !lang) return;
+      e.stopPropagation();
+      e.preventDefault();
+      A.speak(el.dataset.say || el.textContent, lang, el.dataset.slow ? 0.6 : 0.9);
+    }, true);
     const bar = root.querySelector(".bar i");
     const label = root.querySelector(".step-label");
     const nextBtn = root.querySelector("[data-next]");
@@ -127,6 +220,13 @@
           <div class="kicker">${s.step.title} · ${s.n}/${s.of}</div>
           <h2>${sl.title}</h2>
           <div class="prose">${sl.body}</div>
+          ${
+            sl.say
+              ? `<ul class="say-list">${sl.say
+                  .map((w) => `<li>${lang ? sayBtn(w.say || w.t) : ""}<b${/[\u0600-\u06FF]/.test(w.t) ? ' class="ar" dir="rtl"' : ""}>${w.t}</b>${w.ph || HAS_CYR.test(w.t) ? `<span class="ph">${w.ph || A.translit(w.t)}</span>` : ""}<span class="fr">${w.fr || ""}</span></li>`)
+                  .join("")}</ul>`
+              : ""
+          }
           ${sl.article ? `<blockquote class="article"><p>« ${sl.article.text} »</p><cite>${sl.article.ref}</cite></blockquote>` : ""}
           ${sl.example ? `<div class="example"><b>Exemple</b><p>${sl.example}</p></div>` : ""}
         </section>`;
@@ -139,13 +239,14 @@
           <h2>Retourne chaque carte</h2>
           <p class="muted">Lis le recto, essaie de répondre dans ta tête, puis clique pour vérifier. Ces cartes rejoignent ton paquet de <b>révision</b>.</p>
           <div class="flip-grid">${s.step.cards
-            .map((c) => `<button class="flip"><span class="face front">${c.front}</span><span class="face back">${c.back}</span></button>`)
+            .map((c) => `<button class="flip"><span class="face front">${c.front}${HAS_CYR.test(c.front) ? `<small class="tr">${A.translit(c.front)}</small>` : ""}${lang && c.say !== false ? sayBtn(c.say || c.front) : ""}</span><span class="face back">${c.back}</span></button>`)
             .join("")}</div></section>`;
         const all = body.querySelectorAll(".flip");
         let seen = new Set();
         setNext(false, `Retourne les cartes (0/${all.length})`);
         all.forEach((el, k) =>
-          el.addEventListener("click", () => {
+          el.addEventListener("click", (e) => {
+            if (e.target.closest("[data-say]")) return;
             el.classList.toggle("on");
             seen.add(k);
             if (seen.size >= all.length) setNext(true);
@@ -204,7 +305,87 @@
       },
 
       quiz(s) {
-        mcq(s.q.q, s.q.options, s.q.answer, s.q.explain, `Quiz · question ${s.n}/${s.of}`, XP.quiz);
+        const listen = s.q.say && lang;
+        const pre = listen
+          ? `<div class="listen"><button class="btn primary big-say" data-say="${esc(s.q.say)}">🔊 Écouter</button><button class="btn ghost small" data-say="${esc(s.q.say)}" data-slow="1">🐢 Plus lentement</button></div>`
+          : "";
+        mcq(s.q.q, s.q.options, s.q.answer, s.q.explain, listen ? `Écoute · question ${s.n}/${s.of}` : `Quiz · question ${s.n}/${s.of}`, XP.quiz, pre);
+        if (listen) setTimeout(() => A.speak(s.q.say, lang), 300);
+      },
+
+      // Exercice d’écriture : traduire, compléter, conjuguer
+      type(s) {
+        const st = s.step;
+        let k = 0,
+          score = 0;
+        body.innerHTML = `<section class="typer">
+          <div class="kicker">À toi d’écrire</div><h2>${st.title}</h2><p class="muted">${st.instruction || "Écris ta réponse puis valide."}</p>
+          <div class="type-stage"></div></section>`;
+        const stage = body.querySelector(".type-stage");
+        setNext(false, `Réponds (0/${st.items.length})`);
+        function show() {
+          if (k >= st.items.length) {
+            stage.innerHTML = `<div class="sort-done">Score : <b>${score}/${st.items.length}</b>${score === st.items.length ? " — parfait." : ""}</div>`;
+            setNext(true);
+            return;
+          }
+          const it = st.items[k];
+          const answers = Array.isArray(it.answer) ? it.answer : [it.answer];
+          stage.innerHTML = `<div class="type-item"><span class="count">${k + 1}/${st.items.length}</span>
+            <p class="prompt">${it.prompt}${it.say && lang ? sayBtn(it.say) : ""}</p>
+            ${it.hint ? `<p class="hint">Indice : ${it.hint}</p>` : ""}
+            <form class="type-form"><input type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Ta réponse…" />
+            <button class="btn primary" type="submit">Valider</button></form>
+            <button class="btn ghost small" data-skip>Je ne sais pas</button>
+            <div class="feedback"></div></div>`;
+          const form = stage.querySelector("form"),
+            inp = form.querySelector("input");
+          setTimeout(() => inp.focus(), 50);
+          let answered = false;
+          function reveal(res) {
+            if (answered) return;
+            answered = true;
+            inp.disabled = true;
+            form.querySelector("button").disabled = true;
+            stage.querySelector("[data-skip]").remove();
+            const okk = res > 0;
+            const key = i + ":" + k;
+            const first = !awarded.has(key);
+            awarded.add(key);
+            if (first) asked++;
+            if (okk) {
+              score++;
+              if (first) {
+                good++;
+                gained += XP.quiz;
+                store.addXP(XP.quiz);
+              }
+            }
+            inp.classList.add(okk ? "ok" : "ko");
+            const expected = answers[0];
+            // ce qu’on fait entendre : la forme dans la langue étudiée (pas une translittération)
+            const isAr = /[\u0600-\u06FF\u0400-\u04FF]/;
+            const spoken = it.say || answers.find((x) => isAr.test(x)) || (lang && lang.startsWith("ar") ? null : expected);
+            const shown = HAS_CYR.test(expected) ? `${expected}</b> <i class="tr">(${A.translit(expected)})</i><b>` : expected;
+            stage.querySelector(".feedback").innerHTML = `<div class="explain ${okk ? "ok" : "ko"}"><b>${
+              res === 2 ? `Exact · +${XP.quiz} XP` : res === 1 ? `Presque · +${XP.quiz} XP` : "Pas tout à fait"
+            }</b> ${res === 2 ? "" : `Réponse attendue : <b>${shown}</b>${lang && spoken ? sayBtn(spoken) : ""}. `}${it.explain || ""}</div>
+              <button class="btn primary small" data-go>${k + 1 < st.items.length ? "Suivant" : "Voir le score"}</button>`;
+            if (lang && spoken && st.speak !== false) A.speak(spoken, lang);
+            stage.querySelector("[data-go]").onclick = () => {
+              k++;
+              setNext(false, `Réponds (${k}/${st.items.length})`);
+              show();
+            };
+          }
+          form.onsubmit = (e) => {
+            e.preventDefault();
+            if (!inp.value.trim()) return inp.focus();
+            reveal(A.checkAnswer(inp.value, answers, lang));
+          };
+          stage.querySelector("[data-skip]").onclick = () => reveal(0);
+        }
+        show();
       },
 
       case(s) {

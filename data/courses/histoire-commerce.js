@@ -206,6 +206,12 @@ AGORA.registerCourse({
           title: "Le Moyen Âge marchand",
           slides: [
             {
+              title: "Khadija, une femme d’affaires de La Mecque",
+              body:
+                "<p>À la fin du VIe siècle, <b>La Mecque</b> est une ville de marchands. Chaque année, des caravanes partent vers la Syrie et vers le Yémen chargées de cuir, de parfums, d’épices et de tissus.</p><ul><li><b>Khadija bint Khuwaylid</b> (morte en 619) est l’une des commerçantes les plus prospères de la ville. Veuve, elle gère elle-même sa fortune et finance des caravanes.</li><li>Elle ne voyage pas : elle confie ses marchandises à des agents qui partent vendre et rapportent les bénéfices, partagés selon un accord conclu au départ. C’est l’association entre <b>celui qui apporte le capital</b> et <b>celui qui apporte le travail</b> (appelée plus tard <b>qirad</b> ou <b>moudaraba</b>). Un contrat proche, la <b>commenda</b>, se répandra chez les marchands italiens.</li><li>Elle engage un jeune homme réputé pour son honnêteté, <b>Mahomet</b>, pour conduire une caravane vers la Syrie. Satisfaite, elle lui propose le mariage, vers 595.</li><li>Selon la tradition musulmane, elle est la première personne à croire en sa prophétie et le soutient avec sa fortune.</li></ul><p>Ce que l’on sait d’elle vient surtout des biographies musulmanes écrites plus d’un siècle après sa mort : les détails sont à lire avec cette précaution, mais son rôle de marchande est un trait constant des récits.</p>",
+              example: "Le principe du qirad ressemble à une levée de fonds : l’investisseur apporte l’argent, l’entrepreneur son travail ; ils se partagent les bénéfices, et en cas de perte, c’est le capital de l’investisseur qui la supporte.",
+            },
+            {
               title: "Le monde musulman, carrefour des échanges",
               body:
                 "<p>À partir du VIIe siècle, le monde musulman s’étend de l’Espagne à l’Asie centrale. Il se trouve au <b>centre</b> des routes entre l’Europe, l’Afrique, l’Inde et la Chine.</p><ul><li>Des marchands arabes et persans dominent l’océan Indien avec leurs bateaux (les <b>boutres</b>).</li><li>Des villes comme <b>Bagdad</b>, Le Caire ou Damas deviennent de grands centres d’échanges et de savoir.</li><li>Les <b>caravanes transsahariennes</b> relient l’Afrique du Nord à l’Afrique de l’Ouest : sel contre or.</li></ul>",
@@ -234,6 +240,7 @@ AGORA.registerCourse({
           categories: ["Monde musulman et Afrique", "Cités italiennes", "Hanse"],
           items: [
             { text: "Lübeck et le commerce du hareng en Baltique", cat: 2, why: "Cœur de la Hanse." },
+            { text: "Khadija finance des caravanes entre La Mecque et la Syrie", cat: 0, why: "Commerce caravanier de l’Arabie, fin du VIe siècle." },
             { text: "Mansa Moussa traverse Le Caire avec des quantités d’or", cat: 0, why: "Empire du Mali, 1324." },
             { text: "Marco Polo raconte la Chine", cat: 1, why: "Marchand vénitien." },
             { text: "Les caravanes échangent du sel contre de l’or à travers le Sahara", cat: 0, why: "Commerce transsaharien." },
@@ -250,6 +257,7 @@ AGORA.registerCourse({
             { front: "Hanse", back: "Ligue de villes marchandes autour de Lübeck, maîtresse de la Baltique et de la mer du Nord." },
             { front: "Lettre de change", back: "Papier permettant de payer à distance sans transporter d’or : ancêtre du chèque." },
             { front: "Partie double (Pacioli, 1494)", back: "Chaque opération au débit d’un compte et au crédit d’un autre : base de la comptabilité moderne." },
+            { front: "Khadija (morte en 619)", back: "Femme d’affaires de La Mecque qui finançait des caravanes vers la Syrie ; épouse de Mahomet." },
           ],
         },
         {
@@ -258,6 +266,7 @@ AGORA.registerCourse({
             { q: "Que s’échangeait principalement sur les routes transsahariennes ?", options: ["Du sel contre de l’or", "Du pétrole contre du blé", "De la soie contre des épices"], answer: 0, explain: "Le sel, vital et rare au sud du Sahara, contre l’or d’Afrique de l’Ouest." },
             { q: "À quoi servait une lettre de change ?", options: ["À écrire à sa famille", "À payer à distance sans transporter de pièces", "À déclarer ses impôts"], answer: 1, explain: "Elle limitait les risques de vol et facilitait les paiements internationaux." },
             { q: "La comptabilité en partie double, encore utilisée aujourd’hui, a été décrite en…", options: ["1066", "1494", "1789"], answer: 1, explain: "Par Luca Pacioli, à Venise." },
+            { q: "Comment Khadija faisait-elle commerce sans voyager ?", options: ["Elle vendait par correspondance", "Elle confiait ses marchandises à des agents qui partaient avec les caravanes et partageaient les bénéfices avec elle", "Elle tenait une boutique à Damas"], answer: 1, explain: "C’est l’association entre capital et travail, appelée plus tard qirad ou moudaraba." },
             { q: "Selon les récits, que s’est-il passé après le passage de Mansa Moussa au Caire ?", options: ["L’or est devenu plus rare", "Le cours de l’or a baissé localement, tant il en avait distribué", "Il a fait faillite"], answer: 1, explain: "Une abondance soudaine fait baisser la valeur, même de l’or." },
           ],
         },
@@ -280,6 +289,7 @@ AGORA.registerCourse({
           type: "fiche",
           title: "Les marchands du Moyen Âge",
           points: [
+            "<b>Khadija</b> (La Mecque, fin VIe s.) : finance des caravanes vers la Syrie ; association capital + travail (<b>qirad</b>), ancêtre de la commenda.",
             "Monde musulman au <b>carrefour</b> des échanges : océan Indien, Bagdad, Le Caire.",
             "<b>Commerce transsaharien</b> : sel contre or ; <b>Mansa Moussa</b> (Mali, 1324).",
             "Europe : <b>foires de Champagne</b>, <b>Venise</b> et <b>Gênes</b>, <b>Marco Polo</b>, <b>Hanse</b> au nord.",
