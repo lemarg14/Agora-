@@ -1,6 +1,7 @@
 /* ============================================================
    POLYMATH ACADEMY — comptes et synchronisation
-   Connexion par code e-mail (serveur : Google Apps Script + Sheet).
+   Compte : pseudo + e-mail + mot de passe (inscription validée par
+   un code e-mail). Serveur : Google Apps Script + Google Sheet.
    La progression reste aussi en local : le site marche sans compte,
    et hors connexion. Avec un compte, chaque changement est envoyé
    quelques secondes après, et les appareils sont fusionnés.
@@ -11,7 +12,7 @@
   const SKEY = "polymath.session";
   const DELAY = 3000;
 
-  let session = null;
+  let session = null; // { email, token, pseudo }
   try {
     session = JSON.parse(localStorage.getItem(SKEY)) || null;
   } catch (e) {}
@@ -28,6 +29,13 @@
       if (s) localStorage.setItem(SKEY, JSON.stringify(s));
       else localStorage.removeItem(SKEY);
     } catch (e) {}
+  }
+  // nom lisible de l’appareil, affiché dans « Appareils connectés »
+  function deviceName() {
+    const ua = navigator.userAgent || "";
+    const os = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android" : /Mac OS X/.test(ua) ? "Mac" : /Windows/.test(ua) ? "Windows" : /Linux/.test(ua) ? "Linux" : "Appareil";
+    const br = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "navigateur";
+    return os + " · " + br;
   }
 
   async function call(action, payload) {
@@ -84,6 +92,21 @@
     saveSession(null);
     setStatus("off");
   }
+  // ouverture de session après inscription, connexion ou réinitialisation
+  async function opened(r) {
+    if (!r.ok) return r;
+    saveSession({ email: r.email, token: r.token, pseudo: r.pseudo || r.email.split("@")[0] });
+    applyRemote(r.data);
+    await push();
+    return r;
+  }
+  // appel authentifié : déconnecte proprement si la session a expiré
+  async function authed(action, data) {
+    if (!session) return { ok: false, error: "auth" };
+    const r = await call(action, Object.assign({ token: session.token }, data || {}));
+    if (!r.ok && r.error === "auth") expired();
+    return r;
+  }
 
   store.onChange(() => {
     if (!session || applying) return;
@@ -110,6 +133,9 @@
     get email() {
       return session && session.email;
     },
+    get pseudo() {
+      return session && (session.pseudo || session.email.split("@")[0]);
+    },
     get loggedIn() {
       return !!session;
     },
@@ -120,15 +146,50 @@
       return lastSync;
     },
     onChange: (f) => listeners.push(f),
-    async requestCode(email) {
-      return call("requestCode", { email });
+
+    /* --- inscription et connexion --- */
+    signup: (pseudo, email, password) => call("signup", { pseudo, email, password }),
+    resendSignup: (email) => call("resendSignup", { email }),
+    async verifySignup(email, code) {
+      return opened(await call("verifySignup", { email, code, device: deviceName() }));
     },
-    async verify(email, code) {
-      const r = await call("verify", { email, code });
-      if (!r.ok) return r;
-      saveSession({ email: r.email, token: r.token });
-      applyRemote(r.data);
-      await push();
+    async login(email, password) {
+      return opened(await call("login", { email, password, device: deviceName() }));
+    },
+    requestReset: (email) => call("requestReset", { email }),
+    async resetPassword(email, code, password) {
+      return opened(await call("resetPassword", { email, code, password, device: deviceName() }));
+    },
+
+    /* --- gestion du compte --- */
+    me: () => authed("me"),
+    async updateProfile(pseudo) {
+      const r = await authed("updateProfile", { pseudo });
+      if (r.ok) {
+        saveSession(Object.assign({}, session, { pseudo: r.pseudo }));
+        emit();
+      }
+      return r;
+    },
+    changePassword: (current, password) => authed("changePassword", { current, password }),
+    requestEmailChange: (newEmail, password) => authed("requestEmailChange", { newEmail, password }),
+    async confirmEmailChange(newEmail, code) {
+      const r = await authed("confirmEmailChange", { newEmail, code });
+      if (r.ok) {
+        saveSession(Object.assign({}, session, { email: r.email }));
+        emit();
+      }
+      return r;
+    },
+    logoutOthers: () => authed("logoutOthers"),
+    async deleteAccount(password) {
+      const r = await authed("deleteAccount", { password });
+      if (r.ok) {
+        clearTimeout(timer);
+        pending = false;
+        saveSession(null);
+        setStatus("off");
+      }
       return r;
     },
     async logout() {
@@ -139,6 +200,7 @@
       if (t) call("logout", { token: t }).catch(() => {});
     },
     syncNow: () => pull(),
+    pushNow: () => push(),
   });
 
   if (session && url()) pull();

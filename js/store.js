@@ -107,6 +107,10 @@
     },
     todaySeconds: () => state.days[today()] || 0,
     goalSeconds: () => state.dailyGoalMin * 60,
+    setDailyGoal(min) {
+      state.dailyGoalMin = Math.max(5, Math.min(120, Math.round(min) || 15));
+      save();
+    },
     streak() {
       const s = state.streak;
       if (!s.last) return 0;

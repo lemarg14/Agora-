@@ -280,89 +280,411 @@
   const acct = A.account;
   const ERR = {
     bad_email: "Adresse e-mail invalide.",
+    bad_pseudo: "Le pseudo doit faire entre 2 et 24 caractères.",
+    weak_password: "Le mot de passe doit faire au moins 8 caractères.",
+    mismatch: "Les deux mots de passe ne sont pas identiques.",
+    exists: "Un compte existe déjà avec cette adresse. Connecte-toi, ou utilise « Mot de passe oublié ».",
+    bad_login: "E-mail ou mot de passe incorrect.",
+    no_password: "Ce compte a été créé avant les mots de passe : clique sur « Mot de passe oublié » pour en choisir un.",
+    not_verified: "Ton adresse n’est pas encore confirmée : termine l’inscription avec le code reçu par e-mail.",
+    locked: "Trop d’essais : compte bloqué temporairement.",
+    wrong_password: "Mot de passe actuel incorrect.",
+    same_email: "C’est déjà ton adresse actuelle.",
     too_many: "Trop de tentatives. Réessaie dans une heure.",
-    quota: "Trop de connexions aujourd’hui, réessaie demain.",
+    quota: "Trop d’e-mails envoyés aujourd’hui, réessaie demain.",
     no_code: "Demande d’abord un code.",
     expired: "Ce code a expiré, demandes-en un nouveau.",
     bad_code: "Le code fait 6 chiffres.",
     wrong_code: "Code incorrect.",
+    auth: "Ta session a expiré, reconnecte-toi.",
+    unknown_action: "Le serveur de comptes doit être mis à jour (voir l’installation dans tools/apps-script/Code.gs).",
   };
-  const errMsg = (r) => (ERR[r.error] || "Le serveur ne répond pas, réessaie.") + (r.left != null ? ` Il reste ${r.left} essai${r.left > 1 ? "s" : ""}.` : "");
+  const errMsg = (r) =>
+    (ERR[r.error] || "Le serveur ne répond pas, réessaie.") +
+    (r.left != null ? ` Il reste ${r.left} essai${r.left > 1 ? "s" : ""}.` : "") +
+    (r.error === "locked" && r.minutes ? ` Réessaie dans ${r.minutes} min, ou utilise « Mot de passe oublié ».` : "");
+  const esc = (t) => String(t == null ? "" : t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const fmtDate = (t) => (t ? new Date(t).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "—");
+  const fmtTime = (t) => (t ? new Date(t).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—");
+  const fmtAgo = (t) => {
+    if (!t) return "—";
+    const m = Math.round((Date.now() - t) / 60000);
+    if (m < 2) return "à l’instant";
+    if (m < 60) return `il y a ${m} min`;
+    if (m < 60 * 24) return `il y a ${Math.round(m / 60)} h`;
+    return fmtDate(t);
+  };
   function updateAccountChip() {
     const b = $("#btn-account");
     if (!b) return;
     b.hidden = !acct.enabled;
     b.dataset.s = acct.status;
-    $("#account-label").textContent = acct.loggedIn ? acct.email.split("@")[0] : "Se connecter";
+    $("#account-label").textContent = acct.loggedIn ? acct.pseudo : "Se connecter";
   }
   acct.onChange(() => {
     updateAccountChip();
-    if (!overlay.hidden && view.querySelector("[data-acct-view]")) accountView();
+    const live = view.querySelector("[data-acct-live]");
+    if (!overlay.hidden && live) live.innerHTML = syncRows();
   });
-  function accountView(step, email) {
-    const fmt = (t) => (t ? new Date(t).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—");
-    const label = { synced: "À jour", syncing: "Synchronisation…", error: "Erreur, nouvel essai bientôt", offline: "Hors ligne", off: "—" };
-    if (acct.loggedIn) {
-      const lv = store.level();
-      open(`${topbar()}<div data-acct-view></div><div class="kicker">Mon compte</div><h1>${acct.email}</h1>
-        <p class="muted">Ta progression est enregistrée en ligne : retrouve-la sur n’importe quel appareil en te connectant avec cette adresse.</p>
-        <div class="acct-row"><span>Statut</span><b>${label[acct.status] || ""}</b></div>
-        <div class="acct-row"><span>Dernière sauvegarde</span><b>${fmt(acct.lastSync)}</b></div>
-        <div class="acct-row"><span>Rang</span><b>${lv.name} · ${lv.xp} XP</b></div>
-        <div class="acct-actions"><button class="btn primary" data-sync>Synchroniser maintenant</button><button class="btn ghost" data-logout>Se déconnecter</button></div>`);
-      wire();
-      view.querySelector("[data-sync]").onclick = () => acct.syncNow();
-      view.querySelector("[data-logout]").onclick = async () => {
-        await acct.logout();
-        toast("Déconnecté. Ta progression reste aussi sur cet appareil.");
-        accountView();
-      };
-      return;
-    }
-    if (step === "code") {
-      open(`${topbar("Retour")}<div class="kicker">Connexion</div><h1>Entre ton code</h1>
-        <p class="muted">Un code à 6 chiffres vient d’être envoyé à <b>${email}</b>. Pense à regarder dans les spams.</p>
-        <form class="auth-box"><input class="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" required />
-        <button class="btn primary big" type="submit">Valider</button><div class="auth-msg"></div></form>`);
-      wire(() => accountView());
-      const f = view.querySelector("form"), msg = view.querySelector(".auth-msg"), inp = f.querySelector("input");
-      inp.focus();
-      f.onsubmit = async (e) => {
-        e.preventDefault();
-        msg.className = "auth-msg";
-        msg.textContent = "Vérification…";
-        try {
-          const r = await acct.verify(email, inp.value);
-          if (!r.ok) return ((msg.className = "auth-msg err"), (msg.textContent = errMsg(r)));
-          toast("Connecté : ta progression est sauvegardée en ligne.");
-          accountView();
-        } catch (err) {
-          msg.className = "auth-msg err";
-          msg.textContent = errMsg({});
-        }
-      };
-      return;
-    }
-    open(`${topbar()}<div class="kicker">Mon compte</div><h1>Sauvegarde ta progression</h1>
-      <p class="muted">Connecte-toi avec ton e-mail pour retrouver ta progression, tes fiches et tes révisions sur tous tes appareils. Pas de mot de passe : on t’envoie un code.</p>
-      <form class="auth-box"><input type="email" autocomplete="email" placeholder="ton@email.fr" required value="${email || ""}" />
-      <button class="btn primary big" type="submit">Recevoir mon code</button><div class="auth-msg"></div></form>`);
-    wire();
-    const f = view.querySelector("form"), msg = view.querySelector(".auth-msg"), inp = f.querySelector("input");
+
+  // champs de formulaire
+  const field = (label, input, help) => `<label class="field"><span>${label}</span>${input}${help ? `<small>${help}</small>` : ""}</label>`;
+  const pwInput = (name, auto, ph) =>
+    `<div class="pw"><input type="password" name="${name}" autocomplete="${auto}" placeholder="${ph || "••••••••"}" minlength="8" required /><button type="button" class="pw-eye" tabindex="-1" aria-label="Afficher le mot de passe">👁</button></div>`;
+  const codeInput = () => `<input class="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" required />`;
+  // branche un formulaire : état « en cours », message d’erreur, gestion des pannes réseau
+  function bindForm(onSubmit) {
+    const f = view.querySelector("form.auth-box"), msg = f.querySelector(".auth-msg"), btn = f.querySelector("button[type=submit]");
+    f.querySelectorAll(".pw-eye").forEach((e) => (e.onclick = () => {
+      const i = e.previousElementSibling;
+      i.type = i.type === "password" ? "text" : "password";
+    }));
+    const first = f.querySelector("input:not([type=hidden])");
+    if (first) setTimeout(() => first.focus(), 60);
     f.onsubmit = async (e) => {
       e.preventDefault();
-      const em = inp.value.trim().toLowerCase();
+      const v = Object.fromEntries(new FormData(f).entries());
       msg.className = "auth-msg";
-      msg.textContent = "Envoi du code…";
+      msg.textContent = "Un instant…";
+      btn.disabled = true;
       try {
-        const r = await acct.requestCode(em);
-        if (!r.ok) return ((msg.className = "auth-msg err"), (msg.textContent = errMsg(r)));
-        accountView("code", em);
+        const r = await onSubmit(v);
+        if (r && !r.ok) {
+          msg.className = "auth-msg err";
+          msg.textContent = errMsg(r);
+        } else msg.textContent = "";
       } catch (err) {
         msg.className = "auth-msg err";
         msg.textContent = errMsg({});
+      } finally {
+        btn.disabled = false;
       }
     };
+    return f;
+  }
+
+  function accountView() {
+    if (acct.loggedIn) return manageView();
+    authView("login");
+  }
+
+  /* --- connexion / inscription --- */
+  function authView(tab, email) {
+    const tabs = `<div class="tabs" role="tablist"><button class="tab ${tab === "login" ? "on" : ""}" data-tab="login">Se connecter</button><button class="tab ${tab === "signup" ? "on" : ""}" data-tab="signup">Créer un compte</button></div>`;
+    const intro = `<p class="muted">Avec un compte, ta progression, tes fiches et tes révisions sont sauvegardées en ligne et te suivent sur tous tes appareils.</p>`;
+    if (tab === "signup") {
+      open(`${topbar()}<div class="kicker">Mon compte</div><h1>Créer un compte</h1>${intro}${tabs}
+        <form class="auth-box">
+          ${field("Pseudo", `<input name="pseudo" autocomplete="nickname" maxlength="24" placeholder="Comment veux-tu t’appeler ?" required />`)}
+          ${field("E-mail", `<input type="email" name="email" autocomplete="email" placeholder="ton@email.fr" required value="${esc(email)}" />`)}
+          ${field("Mot de passe", pwInput("password", "new-password"), "Au moins 8 caractères.")}
+          ${field("Confirme le mot de passe", pwInput("password2", "new-password"))}
+          <button class="btn primary big" type="submit">Créer mon compte</button>
+          <div class="auth-msg"></div>
+          <p class="fine">Tu recevras un code par e-mail pour confirmer ton adresse. La progression déjà faite sur cet appareil sera ajoutée à ton compte.</p>
+        </form>`);
+      bindForm(async (v) => {
+        if (v.password !== v.password2) return { ok: false, error: "mismatch" };
+        const em = v.email.trim().toLowerCase();
+        const r = await acct.signup(v.pseudo.trim(), em, v.password);
+        if (r.ok) signupCodeView(em);
+        return r;
+      });
+    } else {
+      open(`${topbar()}<div class="kicker">Mon compte</div><h1>Se connecter</h1>${intro}${tabs}
+        <form class="auth-box">
+          ${field("E-mail", `<input type="email" name="email" autocomplete="username" placeholder="ton@email.fr" required value="${esc(email)}" />`)}
+          ${field("Mot de passe", pwInput("password", "current-password"))}
+          <button class="btn primary big" type="submit">Se connecter</button>
+          <div class="auth-msg"></div>
+          <button type="button" class="link" data-forgot>Mot de passe oublié ?</button>
+        </form>`);
+      const f = bindForm(async (v) => {
+        const r = await acct.login(v.email.trim().toLowerCase(), v.password);
+        if (r.ok) {
+          toast(`Bon retour, ${acct.pseudo} !`);
+          manageView();
+        } else if (r.error === "not_verified") signupCodeView(v.email.trim().toLowerCase(), true);
+        return r;
+      });
+      view.querySelector("[data-forgot]").onclick = () => forgotView(f.querySelector("[name=email]").value.trim());
+    }
+    wire();
+    view.querySelectorAll("[data-tab]").forEach((b) => (b.onclick = () => authView(b.dataset.tab, view.querySelector("[name=email]").value.trim())));
+  }
+
+  function signupCodeView(email, resend) {
+    open(`${topbar("Retour")}<div class="kicker">Création du compte</div><h1>Confirme ton adresse</h1>
+      <p class="muted">${resend ? "Un nouveau code va être" : "Un code à 6 chiffres vient d’être"} envoyé à <b>${esc(email)}</b>. Pense à regarder dans les spams.</p>
+      <form class="auth-box">${codeInput()}<button class="btn primary big" type="submit">Activer mon compte</button><div class="auth-msg"></div>
+      <button type="button" class="link" data-resend>Renvoyer un code</button></form>`);
+    wire(() => authView("signup", email));
+    bindForm(async (v) => {
+      const r = await acct.verifySignup(email, v.code);
+      if (r.ok) {
+        toast(`Bienvenue, ${acct.pseudo} ! Ta progression est sauvegardée en ligne.`);
+        manageView();
+      }
+      return r;
+    });
+    const again = async () => {
+      const msg = view.querySelector(".auth-msg");
+      const r = await acct.resendSignup(email).catch(() => ({ ok: false }));
+      msg.className = "auth-msg" + (r.ok ? "" : " err");
+      msg.textContent = r.ok ? "Nouveau code envoyé." : errMsg(r);
+    };
+    view.querySelector("[data-resend]").onclick = again;
+    if (resend) again();
+  }
+
+  function forgotView(email) {
+    open(`${topbar("Retour")}<div class="kicker">Mot de passe oublié</div><h1>Choisis un nouveau mot de passe</h1>
+      <p class="muted">Indique ton adresse : si un compte existe, tu recevras un code pour définir un nouveau mot de passe.</p>
+      <form class="auth-box">${field("E-mail", `<input type="email" name="email" autocomplete="email" placeholder="ton@email.fr" required value="${esc(email)}" />`)}
+      <button class="btn primary big" type="submit">Recevoir un code</button><div class="auth-msg"></div></form>`);
+    wire(() => authView("login", email));
+    bindForm(async (v) => {
+      const em = v.email.trim().toLowerCase();
+      const r = await acct.requestReset(em);
+      if (r.ok) resetView(em);
+      return r;
+    });
+  }
+  function resetView(email) {
+    open(`${topbar("Retour")}<div class="kicker">Mot de passe oublié</div><h1>Nouveau mot de passe</h1>
+      <p class="muted">Si un compte existe pour <b>${esc(email)}</b>, un code vient d’y être envoyé (pense aux spams).</p>
+      <form class="auth-box">${field("Code reçu", codeInput())}
+      ${field("Nouveau mot de passe", pwInput("password", "new-password"), "Au moins 8 caractères. Tes autres appareils seront déconnectés.")}
+      ${field("Confirme le mot de passe", pwInput("password2", "new-password"))}
+      <button class="btn primary big" type="submit">Enregistrer et me connecter</button><div class="auth-msg"></div></form>`);
+    wire(() => forgotView(email));
+    bindForm(async (v) => {
+      if (v.password !== v.password2) return { ok: false, error: "mismatch" };
+      const r = await acct.resetPassword(email, v.code, v.password);
+      if (r.ok) {
+        toast("Mot de passe enregistré, tu es connecté.");
+        manageView();
+      }
+      return r;
+    });
+  }
+
+  /* --- gestion du compte --- */
+  let meCache = null;
+  function syncRows() {
+    const label = { synced: "✓ À jour", syncing: "Synchronisation…", error: "Erreur, nouvel essai bientôt", offline: "Hors ligne", off: "—" };
+    return `<div class="acct-row"><span>Sauvegarde en ligne</span><b>${label[acct.status] || ""}</b></div>
+      <div class="acct-row"><span>Dernière sauvegarde</span><b>${fmtTime(acct.lastSync)}</b></div>`;
+  }
+  function manageView() {
+    if (!acct.loggedIn) return authView("login");
+    const st = store.get();
+    const lv = store.level();
+    const sessionsDone = Object.values(st.courses || {}).reduce((n, c) => n + ((c && c.completed) || []).length, 0);
+    const me = meCache && meCache.email === acct.email ? meCache : null;
+    const initial = (acct.pseudo || "?").trim().charAt(0).toUpperCase();
+    const devices = me
+      ? me.devices
+          .sort((a, b) => (b.current ? 1 : 0) - (a.current ? 1 : 0) || b.last - a.last)
+          .map((d) => `<div class="acct-row"><span>${esc(d.device)}${d.current ? ' <em class="tag">cet appareil</em>' : ""}</span><b>${fmtAgo(d.last)}</b></div>`)
+          .join("")
+      : `<div class="acct-row"><span class="muted">Chargement…</span></div>`;
+    const goals = [10, 15, 20, 30, 45, 60].map((m) => `<option value="${m}" ${st.dailyGoalMin === m ? "selected" : ""}>${m} minutes</option>`).join("");
+    open(`${topbar()}<div class="kicker">Gérer mon compte</div>
+      <div class="acct-head"><div class="avatar">${esc(initial)}</div><div><h1>${esc(acct.pseudo)}</h1><p class="muted">${esc(acct.email)} · ${lv.name}, ${lv.xp} XP</p></div></div>
+
+      <section class="acct-sec"><h3>Profil</h3>
+        <div class="acct-row"><span>Pseudo</span><b>${esc(acct.pseudo)} <button class="link" data-edit-pseudo>Modifier</button></b></div>
+        <div class="acct-row"><span>E-mail</span><b>${esc(acct.email)} <button class="link" data-edit-email>Modifier</button></b></div>
+        <div class="acct-row"><span>Membre depuis</span><b>${me ? fmtDate(me.createdAt) : "…"}</b></div>
+      </section>
+
+      <section class="acct-sec"><h3>Progression</h3>
+        <div class="acct-row"><span>Rang</span><b>${lv.name} · ${lv.xp} XP</b></div>
+        <div class="acct-row"><span>Séances terminées</span><b>${sessionsDone}</b></div>
+        <div class="acct-row"><span>Cartes de révision · fiches</span><b>${store.deckSize()} · ${store.fiches().length}</b></div>
+        <div data-acct-live>${syncRows()}</div>
+        <div class="acct-actions"><button class="btn ghost small" data-sync>Synchroniser maintenant</button></div>
+      </section>
+
+      <section class="acct-sec"><h3>Préférences</h3>
+        <div class="acct-row"><span>Objectif quotidien</span><b><select data-goal>${goals}</select></b></div>
+      </section>
+
+      <section class="acct-sec"><h3>Sécurité</h3>
+        <div class="acct-row"><span>Mot de passe</span><b><button class="link" data-password>${me && !me.hasPassword ? "Définir un mot de passe" : "Changer le mot de passe"}</button></b></div>
+        <p class="sub">Appareils connectés</p>
+        ${devices}
+        <div class="acct-actions"><button class="btn ghost small" data-others ${me && me.devices.length < 2 ? "disabled" : ""}>Déconnecter les autres appareils</button></div>
+      </section>
+
+      <section class="acct-sec"><h3>Mes données</h3>
+        <p class="muted small">Tes données sont stockées dans un tableur privé du créateur de Polymath Academy et ne sont jamais partagées.</p>
+        <div class="acct-actions"><button class="btn ghost small" data-export>Télécharger ma progression</button><button class="btn ghost small" data-reset>Réinitialiser ma progression</button></div>
+      </section>
+
+      <section class="acct-sec danger"><h3>Supprimer le compte</h3>
+        <p class="muted small">Supprime ton compte et ta sauvegarde en ligne. La progression reste sur cet appareil tant que tu ne la réinitialises pas.</p>
+        <div class="acct-actions"><button class="btn danger small" data-delete>Supprimer mon compte</button></div>
+      </section>
+
+      <div class="acct-actions"><button class="btn primary" data-logout>Se déconnecter</button></div>`);
+    wire();
+    const q = (s) => view.querySelector(s);
+    q("[data-sync]").onclick = () => acct.syncNow();
+    q("[data-goal]").onchange = (e) => {
+      store.setDailyGoal(Number(e.target.value));
+      toast(`Objectif quotidien : ${e.target.value} minutes.`);
+    };
+    q("[data-edit-pseudo]").onclick = pseudoView;
+    q("[data-edit-email]").onclick = () => emailView();
+    q("[data-password]").onclick = () => passwordView(me && !me.hasPassword);
+    q("[data-others]").onclick = async () => {
+      const r = await acct.logoutOthers().catch(() => ({ ok: false }));
+      if (r.ok) {
+        toast("Les autres appareils ont été déconnectés.");
+        refreshMe();
+      } else toast(errMsg(r));
+    };
+    q("[data-export]").onclick = () => {
+      const blob = new Blob([JSON.stringify(store.get(), null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "polymath-progression.json";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => (URL.revokeObjectURL(a.href), a.remove()), 1000);
+    };
+    q("[data-reset]").onclick = resetProgressView;
+    q("[data-delete]").onclick = deleteView;
+    q("[data-logout]").onclick = async () => {
+      await acct.logout();
+      meCache = null;
+      toast("Déconnecté. Ta progression reste aussi sur cet appareil.");
+      authView("login");
+    };
+    if (!me) refreshMe();
+  }
+  async function refreshMe() {
+    try {
+      const r = await acct.me();
+      if (r.ok) {
+        meCache = r;
+        if (!overlay.hidden && view.querySelector(".acct-head")) manageView();
+      } else if (r.error === "auth") authView("login");
+    } catch (e) {}
+  }
+  const subPage = (kicker, title, text, body, label) =>
+    open(`${topbar("Mon compte")}<div class="kicker">${kicker}</div><h1>${title}</h1>${text ? `<p class="muted">${text}</p>` : ""}
+      <form class="auth-box">${body}<button class="btn primary big" type="submit">${label}</button><div class="auth-msg"></div></form>`);
+
+  function pseudoView() {
+    subPage("Profil", "Modifier mon pseudo", "", field("Pseudo", `<input name="pseudo" maxlength="24" required value="${esc(acct.pseudo)}" />`, "Entre 2 et 24 caractères."), "Enregistrer");
+    wire(manageView);
+    bindForm(async (v) => {
+      const r = await acct.updateProfile(v.pseudo.trim());
+      if (r.ok) {
+        if (meCache) meCache.pseudo = r.pseudo;
+        toast("Pseudo mis à jour.");
+        manageView();
+      }
+      return r;
+    });
+  }
+  function passwordView(noCurrent) {
+    subPage(
+      "Sécurité",
+      noCurrent ? "Définir un mot de passe" : "Changer le mot de passe",
+      "Tes autres appareils seront déconnectés par sécurité.",
+      (noCurrent ? "" : field("Mot de passe actuel", pwInput("current", "current-password"))) +
+        field("Nouveau mot de passe", pwInput("password", "new-password"), "Au moins 8 caractères.") +
+        field("Confirme le nouveau mot de passe", pwInput("password2", "new-password")),
+      "Enregistrer"
+    );
+    wire(manageView);
+    bindForm(async (v) => {
+      if (v.password !== v.password2) return { ok: false, error: "mismatch" };
+      const r = await acct.changePassword(v.current || "", v.password);
+      if (r.ok) {
+        meCache = null;
+        toast("Mot de passe enregistré.");
+        manageView();
+      }
+      return r;
+    });
+  }
+  function emailView() {
+    subPage(
+      "Profil",
+      "Changer d’adresse e-mail",
+      `Adresse actuelle : <b>${esc(acct.email)}</b>. Un code sera envoyé à la nouvelle adresse pour la confirmer.`,
+      field("Nouvelle adresse", `<input type="email" name="newEmail" autocomplete="email" placeholder="nouvelle@email.fr" required />`) +
+        (meCache && !meCache.hasPassword ? "" : field("Mot de passe", pwInput("password", "current-password"))),
+      "Recevoir un code"
+    );
+    wire(manageView);
+    bindForm(async (v) => {
+      const em = v.newEmail.trim().toLowerCase();
+      const r = await acct.requestEmailChange(em, v.password || "");
+      if (r.ok) emailCodeView(em);
+      return r;
+    });
+  }
+  function emailCodeView(email) {
+    subPage("Profil", "Confirme ta nouvelle adresse", `Un code vient d’être envoyé à <b>${esc(email)}</b>.`, codeInput(), "Confirmer");
+    wire(emailView);
+    bindForm(async (v) => {
+      const r = await acct.confirmEmailChange(email, v.code);
+      if (r.ok) {
+        meCache = null;
+        toast("Adresse e-mail mise à jour.");
+        manageView();
+      }
+      return r;
+    });
+  }
+  function resetProgressView() {
+    subPage(
+      "Mes données",
+      "Réinitialiser ma progression",
+      "Tes XP, séances terminées, cartes de révision et fiches seront effacées sur cet appareil et dans ta sauvegarde en ligne. C’est définitif.",
+      field("Pour confirmer, écris RÉINITIALISER", `<input name="confirm" autocomplete="off" required />`),
+      "Tout effacer"
+    );
+    wire(manageView);
+    view.querySelector("button[type=submit]").classList.replace("primary", "danger");
+    bindForm(async (v) => {
+      if (v.confirm.trim().toUpperCase().replace("É", "E") !== "REINITIALISER") return { ok: false, error: "confirm" };
+      store.reset();
+      if (acct.loggedIn) await acct.pushNow();
+      toast("Progression réinitialisée.");
+      manageView();
+      return { ok: true };
+    });
+    ERR.confirm = "Écris le mot RÉINITIALISER pour confirmer.";
+  }
+  function deleteView() {
+    const needPw = !(meCache && !meCache.hasPassword);
+    subPage(
+      "Supprimer le compte",
+      "Supprimer mon compte",
+      "Ton compte, ta sauvegarde en ligne et tes connexions seront supprimés définitivement. Ta progression restera seulement sur cet appareil.",
+      (needPw ? field("Mot de passe", pwInput("password", "current-password")) : "") + field("Pour confirmer, écris SUPPRIMER", `<input name="confirm" autocomplete="off" required />`),
+      "Supprimer définitivement"
+    );
+    wire(manageView);
+    view.querySelector("button[type=submit]").classList.replace("primary", "danger");
+    ERR.confirm_del = "Écris le mot SUPPRIMER pour confirmer.";
+    bindForm(async (v) => {
+      if (v.confirm.trim().toUpperCase() !== "SUPPRIMER") return { ok: false, error: "confirm_del" };
+      const r = await acct.deleteAccount(v.password || "");
+      if (r.ok) {
+        meCache = null;
+        toast("Ton compte a été supprimé.");
+        authView("signup");
+      }
+      return r;
+    });
   }
 
   /* ------------------------ démarrage -------------------------- */
