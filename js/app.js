@@ -8,7 +8,8 @@
   const overlay = $("#overlay"),
     view = $("#view");
   let campus = null,
-    player = null;
+    player = null,
+    gated = false;
 
   /* ---------------------------- HUD ---------------------------- */
   function updateHUD() {
@@ -45,6 +46,7 @@
     setTimeout(() => campus && !overlay.hidden && campus.setPaused(true), 900);
   }
   function close() {
+    if (gated) return; // pas de sortie sans compte
     if (player) player.stop();
     player = null;
     overlay.hidden = true;
@@ -323,6 +325,7 @@
   }
   acct.onChange(() => {
     updateAccountChip();
+    if (mustLogIn()) gate();
     const live = view.querySelector("[data-acct-live]");
     if (!overlay.hidden && live) live.innerHTML = syncRows();
   });
@@ -363,6 +366,30 @@
     return f;
   }
 
+  /* --- accès au campus réservé aux comptes --- */
+  const mustLogIn = () => !!A.REQUIRE_ACCOUNT && acct.enabled && !acct.loggedIn;
+  const HKEY = "polymath.hadAccount";
+  function gate() {
+    if (gated) return;
+    gated = true;
+    document.body.classList.add("gated");
+    let had = false;
+    try {
+      had = !!localStorage.getItem(HKEY);
+    } catch (e) {}
+    authView(had ? "login" : "signup");
+  }
+  function afterAuth(msg) {
+    try {
+      localStorage.setItem(HKEY, "1");
+    } catch (e) {}
+    toast(msg);
+    if (!gated) return manageView();
+    gated = false;
+    document.body.classList.remove("gated");
+    close();
+    if (!campus) campusList();
+  }
   function accountView() {
     if (acct.loggedIn) return manageView();
     authView("login");
@@ -371,9 +398,12 @@
   /* --- connexion / inscription --- */
   function authView(tab, email) {
     const tabs = `<div class="tabs" role="tablist"><button class="tab ${tab === "login" ? "on" : ""}" data-tab="login">Se connecter</button><button class="tab ${tab === "signup" ? "on" : ""}" data-tab="signup">Créer un compte</button></div>`;
-    const intro = `<p class="muted">Avec un compte, ta progression, tes fiches et tes révisions sont sauvegardées en ligne et te suivent sur tous tes appareils.</p>`;
+    const intro = gated
+      ? `<p class="muted">Crée ton compte pour entrer sur le campus : 15 à 30 minutes par jour, une douzaine de facultés, et ta progression sauvegardée sur tous tes appareils.</p>`
+      : `<p class="muted">Avec un compte, ta progression, tes fiches et tes révisions sont sauvegardées en ligne et te suivent sur tous tes appareils.</p>`;
+    const kicker = gated ? "Bienvenue à Polymath Academy" : "Mon compte";
     if (tab === "signup") {
-      open(`${topbar()}<div class="kicker">Mon compte</div><h1>Créer un compte</h1>${intro}${tabs}
+      open(`${topbar()}<div class="kicker">${kicker}</div><h1>Créer un compte</h1>${intro}${tabs}
         <form class="auth-box">
           ${field("Pseudo", `<input name="pseudo" autocomplete="nickname" maxlength="24" placeholder="Comment veux-tu t’appeler ?" required />`)}
           ${field("E-mail", `<input type="email" name="email" autocomplete="email" placeholder="ton@email.fr" required value="${esc(email)}" />`)}
@@ -391,7 +421,7 @@
         return r;
       });
     } else {
-      open(`${topbar()}<div class="kicker">Mon compte</div><h1>Se connecter</h1>${intro}${tabs}
+      open(`${topbar()}<div class="kicker">${kicker}</div><h1>Se connecter</h1>${intro}${tabs}
         <form class="auth-box">
           ${field("E-mail", `<input type="email" name="email" autocomplete="username" placeholder="ton@email.fr" required value="${esc(email)}" />`)}
           ${field("Mot de passe", pwInput("password", "current-password"))}
@@ -401,10 +431,8 @@
         </form>`);
       const f = bindForm(async (v) => {
         const r = await acct.login(v.email.trim().toLowerCase(), v.password);
-        if (r.ok) {
-          toast(`Bon retour, ${acct.pseudo} !`);
-          manageView();
-        } else if (r.error === "not_verified") signupCodeView(v.email.trim().toLowerCase(), true);
+        if (r.ok) afterAuth(`Bon retour, ${acct.pseudo} !`);
+        else if (r.error === "not_verified") signupCodeView(v.email.trim().toLowerCase(), true);
         return r;
       });
       view.querySelector("[data-forgot]").onclick = () => forgotView(f.querySelector("[name=email]").value.trim());
@@ -421,10 +449,7 @@
     wire(() => authView("signup", email));
     bindForm(async (v) => {
       const r = await acct.verifySignup(email, v.code);
-      if (r.ok) {
-        toast(`Bienvenue, ${acct.pseudo} ! Ta progression est sauvegardée en ligne.`);
-        manageView();
-      }
+      if (r.ok) afterAuth(`Bienvenue sur le campus, ${acct.pseudo} !`);
       return r;
     });
     const again = async () => {
@@ -461,10 +486,7 @@
     bindForm(async (v) => {
       if (v.password !== v.password2) return { ok: false, error: "mismatch" };
       const r = await acct.resetPassword(email, v.code, v.password);
-      if (r.ok) {
-        toast("Mot de passe enregistré, tu es connecté.");
-        manageView();
-      }
+      if (r.ok) afterAuth("Mot de passe enregistré, tu es connecté.");
       return r;
     });
   }
@@ -731,10 +753,9 @@
   }
   if (window.THREE && webglOK()) {
     campus = A.createCampus($("#campus"), $("#labels"), A.faculties, { onSelect: openFaculty, onLibrary: libraryView });
-  } else {
-    document.body.classList.add("no-3d");
-    campusList();
-  }
+  } else document.body.classList.add("no-3d");
+  if (mustLogIn()) gate();
+  else if (!campus) campusList();
   updateHUD();
   setTimeout(() => $("#hint").classList.add("fade"), 15000);
 })();

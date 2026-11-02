@@ -481,3 +481,8 @@ table.t td .ar { font-size: 1.6em; }
 .btn.danger:hover { background: #a93a31; }
 .btn[disabled] { opacity: .5; cursor: not-allowed; }
 @media (max-width: 520px) { .acct-row { flex-wrap: wrap; } .acct-row b { text-align: left; } }
+
+/* --- campus réservé aux comptes : le campus reste flou derrière --- */
+body.gated #campus, body.gated #labels { filter: blur(7px) brightness(0.75); pointer-events: none; }
+body.gated #hud, body.gated #hint, body.gated .view-toggle, body.gated .night-toggle { display: none !important; }
+body.gated #overlay [data-close] { visibility: hidden; }
